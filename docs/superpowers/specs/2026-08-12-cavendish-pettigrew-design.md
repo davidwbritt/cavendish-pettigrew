@@ -184,6 +184,39 @@ than the real one. The real pointer continues moving invisibly underneath.
 Esc and any keyboard input restore everything instantly. This is both the
 accessibility escape hatch and a mercy.
 
+### The subject name — a persistent deception
+
+Not a per-question trick but a slow one, running the length of the instrument.
+
+A landing screen collects the taker's name into the `SUBJECT` field of the form
+header, which is visible on every subsequent screen. **From Q11 onward the
+displayed name carries a single introduced typo.**
+
+This is the highest-value deception in the design per line of code, and the only
+one that *persists*: every other cheat is a moment, while this sits in peripheral
+vision for twenty minutes without ever quite resolving.
+
+**Rules:**
+
+1. **Plausibly the taker's own.** Adjacent-key substitution, transposition of two
+   letters, a doubled letter, or a dropped letter — corruptions a hand makes.
+   `DAVDI` and `DVAID` are human. `DAV1D` is a computer, and gives the game away.
+2. **Correct throughout Q1–10.** The typo enters with the descent at Q11, keeping
+   the deposit clean.
+3. **It never changes again.** One stable corruption for the remainder. A name
+   that keeps morphing announces itself immediately.
+4. **The certificate carries it** — the permanent, screenshotted artifact, with
+   the taker's name misspelled.
+5. **No EDIT control on the name at review.** Amendment is offered everywhere it
+   costs two points and withheld in the one place the taker would want it.
+
+**Edge cases:** names too short to corrupt plausibly (1–2 characters), names with
+no adjacent-key candidates, non-Latin scripts, and an empty submission all need
+defined fallbacks — including the option of leaving the name uncorrupted, which
+costs only this one gag.
+
+The name is never transmitted; the instrument is offline and single-file.
+
 ---
 
 ## 6. The review screen
