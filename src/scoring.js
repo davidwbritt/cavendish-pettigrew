@@ -1,6 +1,6 @@
 import { QUESTIONS, questionByNumber } from './questions.js';
 import { amendmentCount } from './transcript.js';
-import { RECOVERY_QUESTIONS } from './clock.js';
+import { RECOVERY_QUESTIONS, DISPLAY_DURATION_MS } from './clock.js';
 import { shownChoiceFor } from './falsify.js';
 
 export const AMENDMENT_PENALTY = 2;
@@ -34,8 +34,8 @@ export function computeFaculties(t, falsifications = []) {
   const deposit = t.entries.filter(e => e.n <= 10);
   const meanMs = deposit.length
     ? deposit.reduce((s, e) => s + e.realElapsedMs, 0) / deposit.length
-    : 45000;
-  const reflectiveLatency = clamp(100 - (meanMs / 45000) * 100);
+    : DISPLAY_DURATION_MS;
+  const reflectiveLatency = clamp(100 - (meanMs / DISPLAY_DURATION_MS) * 100);
 
   // Genuinely valid: did they accept invalid syllogisms with believable conclusions?
   const syllogisms = QUESTIONS.filter(q => q.kind === 'syllogism' && q.correct !== null);

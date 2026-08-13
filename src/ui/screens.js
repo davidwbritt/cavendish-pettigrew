@@ -1,5 +1,6 @@
 import { el, clear } from './dom.js';
 import { createTimerDriver } from './timer-driver.js';
+import { DISPLAY_DURATION_MS } from '../clock.js';
 import { shownChoiceFor } from '../falsify.js';
 import { recordAmendment, amendmentCount } from '../transcript.js';
 import { preliminaryScore, AMENDMENT_PENALTY } from '../scoring.js';
@@ -76,6 +77,15 @@ export const FORCED_ANSWER_PAUSE_MS = 1500;
 export const FORCED_ANSWER_TEXT =
   'NO RESPONSE RECORDED. A RESPONSE HAS BEEN SELECTED ON YOUR BEHALF.';
 
+// Renders a remaining-ms value as the `0:SS` face text — the single source
+// both the initial digits (before the first tick) and every subsequent tick
+// use, so the two can never print a different second count for the same
+// underlying value (see tick() below).
+function formatDigits(remainingMs) {
+  const s = Math.ceil(remainingMs / 1000);
+  return `0:${String(s).padStart(2, '0')}`;
+}
+
 export function renderQuestion(root, { question, displayName, onChoose, onExpire }) {
   // Kill any still-running loop from a prior screen before starting a new
   // one — the caller may forget to call the previous stop(), but this
@@ -84,7 +94,10 @@ export function renderQuestion(root, { question, displayName, onChoose, onExpire
 
   clear(root);
   const driver = createTimerDriver(question.n);
-  const digits = el('span', { class: 'timer-digits', text: '0:45' });
+  // Derived from DISPLAY_DURATION_MS (src/clock.js), NOT a literal — the
+  // face's starting text must never be able to disagree with what the
+  // first tick() below renders for the same constant.
+  const digits = el('span', { class: 'timer-digits', text: formatDigits(DISPLAY_DURATION_MS) });
   const bar = el('div', { class: 'timer-bar-fill' });
 
   let stopped = false;      // the rAF tick loop
@@ -171,9 +184,8 @@ export function renderQuestion(root, { question, displayName, onChoose, onExpire
   const tick = () => {
     if (stopped) return;
     const remaining = driver.displayedRemainingMs();
-    const s = Math.ceil(remaining / 1000);
-    digits.textContent = `0:${String(s).padStart(2, '0')}`;
-    bar.style.width = `${(remaining / 45000) * 100}%`;
+    digits.textContent = formatDigits(remaining);
+    bar.style.width = `${(remaining / DISPLAY_DURATION_MS) * 100}%`;
     if (driver.expired()) {
       outcome.fire(() => {
         stopTick();
@@ -457,7 +469,7 @@ export function renderCertificate(root, { report, faculties, centile, onDebrief 
 // reviewRows/applyAmendment/certificateIndexRows above for the same
 // extraction pattern; no jsdom in this project).
 const DEBRIEF_CLOSING_BASE =
-  'The timer always showed forty-five seconds. It did not always give you forty-five seconds. Some of your clicks were interfered with. Three answers on the review sheet were changed before you saw them';
+  'The timer always showed thirty seconds. It did not always give you thirty seconds. Some of your clicks were interfered with. Three answers on the review sheet were changed before you saw them';
 
 export function debriefClosingText(typoApplied) {
   return typoApplied

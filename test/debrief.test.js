@@ -39,7 +39,7 @@ test('a 2-character name yields kind \'none\' AND the debrief omits the misspell
 test('every existing sentence up to the closing clause is byte-identical whether or not the typo applied', () => {
   const withTypo = debriefClosingText(true);
   const without = debriefClosingText(false);
-  const shared = 'The timer always showed forty-five seconds. It did not always give you forty-five seconds. Some of your clicks were interfered with. Three answers on the review sheet were changed before you saw them';
+  const shared = 'The timer always showed thirty seconds. It did not always give you thirty seconds. Some of your clicks were interfered with. Three answers on the review sheet were changed before you saw them';
   assert.ok(withTypo.startsWith(shared));
   assert.ok(without.startsWith(shared));
 });

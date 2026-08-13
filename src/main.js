@@ -1,4 +1,5 @@
 import { mulberry32, pick } from './rng.js';
+import { DISPLAY_DURATION_MS } from './clock.js';
 import { QUESTIONS } from './questions.js';
 import { scheduleTricks } from './tricks.js';
 import { introduceTypo, displayNameFor } from './name.js';
@@ -61,7 +62,7 @@ function nextQuestion() {
     recordAnswer(transcript, {
       n: question.n, choice,
       realElapsedMs,
-      displayedElapsedMs: 45000 - driver.displayedRemainingMs(),
+      displayedElapsedMs: DISPLAY_DURATION_MS - driver.displayedRemainingMs(),
       changes: 0, trick: schedule.get(question.n) ?? null,
       // Deliberately NOT hidden from the taker (see reviewRows/renderReview
       // in screens.js — the review sheet brands a REFUSED row even while

@@ -59,7 +59,7 @@ Single HTML file, no dependencies, no network, no build step — house style.
 
 ### Q1–10 — The Deposit
 
-Scrupulously fair. Real instruments, honest 45-second clock, **no tricks
+Scrupulously fair. Real instruments, honest 30-second clock, **no tricks
 whatsoever**. This is the trust deposit that everything later spends.
 
 Composition: 3 cognitive-reflection items · 3 formal syllogisms in real English ·
@@ -103,29 +103,29 @@ See §7.
 
 ## 4. The timer
 
-**The displayed timer always reads 45 and always counts 45 → 0.** Only the *rate*
+**The displayed timer always reads 30 and always counts 30 → 0.** Only the *rate*
 changes. Nobody times a countdown against a stopwatch.
 
 Real wall-clock duration by question:
 
 | Questions | Real duration |
 |---|---|
-| Q1–10 | 45s — honest |
-| Q11, Q12 | 42s, 38s |
-| **Q13** | **45s — recovery, honest** |
-| Q14, Q15 | 34s, 30s |
-| **Q16** | **45s — recovery, honest** |
-| Q17, Q18 | 27s, 24s |
-| **Q19** | **45s — recovery, honest** |
-| Q20 | 21s |
-| Q21–24 | 20s — floor |
+| Q1–10 | 30s — honest |
+| Q11, Q12 | 28s, 26s |
+| **Q13** | **30s — recovery, honest** |
+| Q14, Q15 | 23s, 20s |
+| **Q16** | **30s — recovery, honest** |
+| Q17, Q18 | 17s, 14s |
+| **Q19** | **30s — recovery, honest** |
+| Q20 | 11s |
+| Q21–24 | 10s — floor |
 
-**Hard floor of 20 seconds.** Never lower, at any index, under any condition.
+**Hard floor of 10 seconds.** Never lower, at any index, under any condition.
 
 Expiry auto-submits whatever is currently highlighted. Displayed digits and the
 depletion rule are both driven from the same fake clock.
 
-By Q20 the taker receives roughly half the time the instrument claims to have
+By Q24 the taker receives a third of the time the instrument claims to have
 given them, fails accordingly, and concludes that they are slowing down. The
 certificate later confirms this.
 
@@ -473,8 +473,8 @@ pattern used for Smallfolk.
 
 Node tests in the Spinelli mould — most of this is invariants rather than feel.
 
-- Displayed timer always runs 45 → 0; real duration matches the §4 table and
-  **never** drops below 20s at any index
+- Displayed timer always runs 30 → 0; real duration matches the §4 table and
+  **never** drops below 10s at any index
 - Trick scheduler satisfies all six invariants in §5, property-tested across many
   simulated runs
 - **Every trick is escapable** — for each, simulate the sabotage and assert a
