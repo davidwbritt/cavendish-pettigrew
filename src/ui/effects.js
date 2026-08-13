@@ -6,9 +6,23 @@
 //
 // CONTRACT: every effect below must leave a route to the intended answer —
 // spec §5, scheduling invariant 6. Enforced by construction: each effect
-// either delays input or reroutes it through onChoose, never removes the
-// option or traps the taker. An uncorrectable wrong answer produces rage;
-// a correctable one produces self-doubt, which is the entire point.
+// either delays input, reroutes it through onChoose, or intercepts it
+// through a bounded counter, but never removes the option or traps the
+// taker indefinitely. An uncorrectable wrong answer produces rage; a
+// correctable one produces self-doubt, which is the entire point.
+//
+// INTERCEPTION: screens.js registers the real option onclick at render
+// time; applyTrick runs afterwards and can only attach LATER listeners.
+// Same-node listeners fire in registration order, so a plain click
+// listener added here can never pre-empt (or usefully cancel) the real
+// handler — stopImmediatePropagation() cannot un-invoke a handler that
+// already ran. deadClick and ghostSelection therefore do not use click
+// listeners at all: they install an interceptor via setInterceptor(fn),
+// which screens.js consults BEFORE committing a selection. The
+// interceptor returns null to swallow the click (no selection, no commit)
+// or an option index to proceed with (the original index, or a remapped
+// one). If setInterceptor is not supplied, these two tricks degrade to
+// no-ops rather than throwing.
 //
 // TIMER HAZARD: doubleMark, buttonFlinch, stickyAnswer and phantomLock all
 // schedule setTimeout callbacks. Removing an event listener does NOT cancel
@@ -19,8 +33,9 @@
 // question the taker has already left: silent transcript corruption. To
 // close that hole, every setTimeout in this module is created through
 // `schedule()` below, and detach() clears every outstanding id. detach()
-// also undoes any inline style, class or attribute an effect applied, so
-// nothing it touched survives teardown.
+// also undoes any inline style, class or attribute an effect applied, and
+// clears any interceptor it installed, so nothing it touched survives
+// teardown.
 
 // Touch has no hover and no cursor, so flinch and phantom-lock are replaced
 // rather than skipped — mobile takers must meet the same number of tricks.
@@ -37,7 +52,7 @@ export function effectiveTrick(name, isTouch) {
   return isTouch ? TOUCH_SUBSTITUTIONS[name] : name;
 }
 
-export function applyTrick(name, { optionElements, onChoose, rng, isTouch = false }) {
+export function applyTrick(name, { optionElements, onChoose, rng, isTouch = false, setInterceptor }) {
   const trick = effectiveTrick(name, isTouch);
   const cleanups = [];
   const timers = new Set();
@@ -61,30 +76,42 @@ export function applyTrick(name, { optionElements, onChoose, rng, isTouch = fals
   };
 
   if (trick === 'deadClick') {
+    // Bounded: the first up-to-2 clicks are swallowed (each with 80%
+    // odds), then every click passes through untouched — the taker always
+    // reaches their answer within a small, fixed number of extra taps.
     let swallowed = 0;
-    onEach('click', e => {
-      if (swallowed < 2 && rng() < 0.8) { swallowed++; e.stopImmediatePropagation(); e.preventDefault(); }
-    }, true);
+    setInterceptor?.(i => {
+      if (swallowed < 2 && rng() < 0.8) { swallowed++; return null; }
+      return i;
+    });
   }
 
   if (trick === 'ghostSelection') {
-    onEach('click', e => {
-      e.stopImmediatePropagation(); e.preventDefault();
-      const i = Number(e.currentTarget.dataset.index);
-      onChoose((i + 1) % optionElements.length);
-    }, true);
+    // Always reroutes to the next option — deniable as "I fat-fingered the
+    // one below" — but the route to the intended answer is intact: click
+    // the option immediately before the one you want.
+    setInterceptor?.(i => (i + 1) % optionElements.length);
   }
 
   if (trick === 'doubleMark') {
     const marked = new Set();
+    let lastReal = null;
     onEach('click', e => {
       const i = Number(e.currentTarget.dataset.index);
+      // No interceptor is installed for this trick, so the real onclick
+      // (registered by screens.js, earlier in listener order) has already
+      // committed this selection by the time this handler runs.
+      lastReal = i;
       const ghost = optionElements[(i + 2) % optionElements.length];
       ghost.setAttribute('aria-pressed', 'true');
       marked.add(ghost);
       schedule(() => {
-        ghost.setAttribute('aria-pressed', 'false');
         marked.delete(ghost);
+        // If the taker's genuine selection has since landed on this same
+        // node, clearing it here would silently undo their real answer's
+        // visual state. Only revert if it's still just a decoy.
+        if (Number(ghost.dataset.index) === lastReal) return;
+        ghost.setAttribute('aria-pressed', 'false');
       }, 1400);
     });
     cleanups.push(() => {
@@ -145,16 +172,34 @@ export function applyTrick(name, { optionElements, onChoose, rng, isTouch = fals
   }
 
   if (trick === 'scrollSteal') {
-    onEach('touchstart', e => { e.preventDefault(); window.scrollBy(0, 2); }, { passive: false });
+    // Bounded exactly like deadClick: only the first up-to-2 taps are
+    // consumed as a scroll gesture (each with 80% odds); every later tap
+    // reaches the button normally. Unbounded interception here would trap
+    // every touch taker for the whole question — there is no click to
+    // intercept later, since preventDefault() on touchstart suppresses the
+    // synthesized click outright.
+    let stolen = 0;
+    onEach('touchstart', e => {
+      if (stolen < 2 && rng() < 0.8) { stolen++; e.preventDefault(); window.scrollBy(0, 2); }
+    }, { passive: false });
   }
 
   if (trick === 'firmPress') {
+    // Bounded like the others: only the first up-to-2 short taps have
+    // their synthesized click suppressed (each with 80% odds), forcing a
+    // longer press; later short taps pass through normally so the taker
+    // is never stuck. Acts on the touchend event that is actually firing,
+    // not the stale touchstart event captured at press time.
+    let blocked = 0;
     onEach('touchstart', e => {
       const node = e.currentTarget;
       const started = Date.now();
-      const release = () => {
-        if (Date.now() - started < 500) { e.preventDefault(); }
+      const release = (te) => {
         node.removeEventListener('touchend', release);
+        if (blocked < 2 && Date.now() - started < 500 && rng() < 0.8) {
+          blocked++;
+          te.preventDefault();
+        }
       };
       node.addEventListener('touchend', release);
       // release() removes itself once touchend fires, but if it never does
@@ -168,5 +213,6 @@ export function applyTrick(name, { optionElements, onChoose, rng, isTouch = fals
     for (const fn of cleanups) fn();
     for (const id of timers) clearTimeout(id);
     timers.clear();
+    setInterceptor?.(null);
   };
 }

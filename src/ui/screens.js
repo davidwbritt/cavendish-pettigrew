@@ -56,13 +56,26 @@ export function renderQuestion(root, { question, displayName, onChoose, onExpire
     options.forEach((btn, idx) => btn.setAttribute('aria-pressed', String(idx === i)));
   };
 
+  // Owned here so a trick can only ever act through a hook the screen
+  // consults first — a listener attached later by applyTrick can never run
+  // before the real selection below, so interception must be structural,
+  // not a race against listener order.
+  let interceptor = null;
+  const setInterceptor = fn => { interceptor = fn; };
+
   const options = question.options.map((text, i) =>
     el('button', {
       class: 'option', 'data-index': String(i), 'aria-pressed': 'false',
       onclick: () => {
-        selectOption(i);
+        let index = i;
+        if (interceptor) {
+          const result = interceptor(i);
+          if (result === null) return; // swallowed — no selection, no commit
+          index = result;              // possibly remapped
+        }
+        selectOption(index);
         stop();
-        onChoose(i, driver.elapsedMs());
+        onChoose(index, driver.elapsedMs());
       }
     }, [
       el('span', { class: 'option-letter', text: 'ABCD'[i] }),
@@ -92,5 +105,5 @@ export function renderQuestion(root, { question, displayName, onChoose, onExpire
   let raf = requestAnimationFrame(tick);
   activeStop = stop;
 
-  return { driver, stop, optionElements: options };
+  return { driver, stop, optionElements: options, setInterceptor };
 }
