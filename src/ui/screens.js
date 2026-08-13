@@ -1,6 +1,11 @@
 import { el, clear } from './dom.js';
 import { createTimerDriver } from './timer-driver.js';
 
+// Guards against a leaked rAF loop: rendering any new question screen
+// unconditionally kills the previous one's timer loop, even if the caller
+// forgot to capture and call the returned stop().
+let activeStop = null;
+
 export function renderHeader(displayName) {
   return el('div', { class: 'form-header' }, [
     el('div', { class: 'field' }, [
@@ -29,15 +34,36 @@ export function renderLanding(root, onStart) {
 }
 
 export function renderQuestion(root, { question, displayName, onChoose, onExpire }) {
+  // Kill any still-running loop from a prior screen before starting a new
+  // one — the caller may forget to call the previous stop(), but this
+  // module must not depend on that.
+  if (activeStop) activeStop();
+
   clear(root);
   const driver = createTimerDriver(question.n);
-  const digits = el('span', { class: 'timer-digits' });
+  const digits = el('span', { class: 'timer-digits', text: '0:45' });
   const bar = el('div', { class: 'timer-bar-fill' });
+
+  let stopped = false;
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    cancelAnimationFrame(raf);
+    if (activeStop === stop) activeStop = null;
+  };
+
+  const selectOption = (i) => {
+    options.forEach((btn, idx) => btn.setAttribute('aria-pressed', String(idx === i)));
+  };
 
   const options = question.options.map((text, i) =>
     el('button', {
-      class: 'option', 'data-index': String(i),
-      onclick: () => onChoose(i, driver.elapsedMs())
+      class: 'option', 'data-index': String(i), 'aria-pressed': 'false',
+      onclick: () => {
+        selectOption(i);
+        stop();
+        onChoose(i, driver.elapsedMs());
+      }
     }, [
       el('span', { class: 'option-letter', text: 'ABCD'[i] }),
       el('span', { class: 'option-text', text })
@@ -55,6 +81,7 @@ export function renderQuestion(root, { question, displayName, onChoose, onExpire
   );
 
   const tick = () => {
+    if (stopped) return;
     const remaining = driver.displayedRemainingMs();
     const s = Math.ceil(remaining / 1000);
     digits.textContent = `0:${String(s).padStart(2, '0')}`;
@@ -63,7 +90,7 @@ export function renderQuestion(root, { question, displayName, onChoose, onExpire
     raf = requestAnimationFrame(tick);
   };
   let raf = requestAnimationFrame(tick);
-  const stop = () => cancelAnimationFrame(raf);
+  activeStop = stop;
 
   return { driver, stop, optionElements: options };
 }
