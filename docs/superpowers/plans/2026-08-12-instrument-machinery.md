@@ -2994,6 +2994,25 @@ Not part of this plan. Once the machinery is green:
 
    Recommendation: explicit for the animal, oblique for the colour — one named
    mechanism sells the apparatus, two starts to feel like a magazine quiz.
+
+   **Two constraints the machinery imposes on the content — read before writing:**
+
+   **(a) Deposit answers must be short, concrete and memorable.** The review
+   screen's whole payload is the taker thinking *"I know I answered five cents."*
+   That only works if the answer is the kind of thing a person remembers deciding.
+   Long clauses blur together and a falsified row lands on nothing. Aim for
+   answers like `5 cents`, `None of the above`, `Neither` — not
+   `Some floodazzles may be gebbleflips under certain conditions`. This matters
+   most for the three cognitive-reflection items, since at least one falsified
+   row is always drawn from a CRT question the taker got right.
+
+   **(b) Q20 and Q22 carry a trick in EVERY run.** This falls out of the owner's
+   decision to exclude Q24 from eligibility while keeping five tricks: with nine
+   eligible slots the non-adjacency constraint admits exactly one shape, so Q20
+   and Q22 are always sabotaged and Q21 never is. Those two questions therefore
+   do the heaviest lifting for deniability — write them as ordinary-looking items
+   where a misclick feels plausible, NOT as ones where the taker will have a
+   strong sense of exactly which option they meant to press.
 2. Replace all 24 strings in `BARNUM` and all 16 in `INSINUATION_TIERS`.
 3. Playtest one tester at a time, recording the answer to *"At which question
    number did you first suspect?"* Target is past Q20; below Q15, re-tune the
