@@ -43,13 +43,22 @@ const COMPOSURE_SUPPRESSED_NOTE =
 // the name of record and the taker's as the error. It then names the index
 // it docked, so the deduction reads as procedure rather than spite.
 //
+// The middle sentence is the one doing the work, and it is deliberately
+// phrased as a GENERAL LAW rather than an observation about this person: not
+// "the subject appears impulsive" but "a misspelled name indicates
+// impulsivity". That is how the sentence gets its authority — the finding is
+// presented as established, the taker as merely another instance of it, and
+// there is correspondingly nothing to dispute. It also completes the piece's
+// central move in one line: a clerical smudge the instrument introduced
+// becomes a fact about the taker's character.
+//
 // Only ever called when a typo was actually applied. Names too short to
 // corrupt (and any other case introduceTypo returns kind 'none' for) get no
 // discrepancy, no line and no deduction — accusing someone of misspelling a
 // name the certificate then prints correctly is not a joke, it is a bug.
 function nameDiscrepancyNote({ supplied, record }) {
   return `NAME DISCREPANCY — entry given as "${supplied}"; name of record is "${record}". `
-    + 'Subject demonstrates inconsistency in self-report. '
+    + 'A misspelled name indicates impulsivity under pressure and a tendency toward lax standards. '
     + 'RESPONSE CONSISTENCY (κ) has been adjusted accordingly.';
 }
 

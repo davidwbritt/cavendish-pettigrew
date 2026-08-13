@@ -257,6 +257,12 @@ test('the certificate reports the name discrepancy and names the index it docked
   assert.match(note, /name of record is "DAVOD BRITT"/,
     'the corrupted spelling must be presented as the authoritative one');
   assert.ok(note.includes('RESPONSE CONSISTENCY'), 'and it must name the index it charged');
+  // Stated as a general law, not an observation about this person: the
+  // finding is presented as established and the taker as another instance
+  // of it, which is what leaves nothing to dispute.
+  assert.match(note, /A misspelled name indicates impulsivity under pressure and a tendency toward lax standards\./);
+  assert.ok(!/subject appears|subject seems|may indicate/i.test(note),
+    'no hedging — the instrument does not speculate, it reports');
 });
 
 test('no discrepancy line when the name was never corrupted', () => {
