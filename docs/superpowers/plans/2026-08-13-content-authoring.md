@@ -177,6 +177,20 @@ Not content to use verbatim — the aim:
   how long they would need to continue."*
 - **Tier 4 is the Recommendations closer** — flattest delivery, worst content.
 
+> **AMENDED 2026-08-13 (owner's call) — broaden beyond the career.** The
+> first pass aimed almost everything at the job: trajectories, contributions,
+> former colleagues, resignation drafts. That reproduced the very failure
+> mode §2 warns about, from a different direction — mid-life does not arrive
+> only through work, and for plenty of these readers the pressure is
+> domestic. The household administration nobody counts, obligations met at an
+> unitemised cost, the practical aspects of navigating life. A pool that only
+> knows about careers misses those readers exactly as badly as a gendered one
+> misses the women, and wastes the easiest universal material available. The
+> mix now runs roughly a third career, a third domestic, a third classically
+> Forer. Career material stays and is still the sharpest — the road not
+> taken, work meant to be temporary — it is simply no longer the only thing
+> the instrument thinks a life contains.
+
 ### The insinuation criterion is unchanged
 
 **Privately near-universal, publicly unadmitted.** True and unspeakable, never

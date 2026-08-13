@@ -3,41 +3,51 @@
 //
 // AIMED AT A KNOWN READER (plan 2026-08-13, §2): people in computing —
 // architects, engineers, technical leads — passing the far end of mid-life.
-// Written for the career stage and the profession, NEVER for the gender.
-// The reading skews male but explicitly is not only men, and a male-coded
-// specific buys no extra bite while breaking the piece completely for the
-// first reader outside the skew. That is the worst available failure mode
-// for a Barnum instrument: one statement that obviously is not about you
-// retroactively discredits every statement around it, including the ones
-// that landed. The third-person clinical register does this work for free.
+// Written for the career stage, NEVER for the gender. The reading skews male
+// but explicitly is not only men, and a male-coded specific buys no extra
+// bite while breaking the piece completely for the first reader outside the
+// skew. That is the worst available failure mode for a Barnum instrument:
+// one statement that obviously is not about you retroactively discredits
+// every statement around it, including the ones that landed. The
+// third-person clinical register does this work for free.
 //
-// Forer's 1948 originals already skew toward exactly this reader — unused
-// capacity, doubts about the right decision, unrealistic aspirations. For a
-// general audience those are horoscope filler. Read at fifty-two by someone
-// who took the stable job over the risky one, they stop being filler.
+// BROADENED 2026-08-13 (owner's call). An earlier pass aimed almost
+// everything at the job — trajectories, contributions, former colleagues,
+// resignation drafts — and pulled the same failure mode from a different
+// direction. Mid-life does not arrive only through work. For plenty of these
+// readers the pressure is domestic: the household admin nobody counts, the
+// obligations met at an unitemised cost, the day-to-day that is simply
+// harder to stay on top of than it used to be. A pool that only knows about
+// careers misses those readers exactly as badly as a gendered one misses the
+// women, and it wastes the easiest universal material available.
+//
+// The mix now runs roughly a third career, a third domestic, a third
+// classically Forer. Career material is still here and still the sharpest —
+// the road not taken, work that was meant to be temporary — it is simply no
+// longer the only thing the instrument thinks a life contains.
 export const BARNUM = [
-  'The subject presents as markedly self-critical in a manner not typically apparent to colleagues.',
+  'The subject presents as markedly self-critical in a manner not typically apparent to others.',
   'Considerable unused capacity is evident and has not been turned to advantage.',
-  'The subject retains a clear recollection of the point at which a different professional trajectory was available.',
-  'A preference for solving the problem directly persists well beyond the point at which the subject\'s role required it.',
+  'The subject retains a clear recollection of the point at which a different course was available, and has revisited it more recently than they would report.',
+  'The subject is at times challenged by the practical aspects of navigating life.',
   'The subject has found it unwise to be entirely frank in describing their own contribution.',
   'Some stated ambitions are, on examination, unlikely now to be realised, and the subject has largely accommodated this.',
   'Independence of judgement is valued, though external confirmation is sought more often than acknowledged.',
   'At times the subject experiences serious doubt as to whether the correct decision was made.',
-  'Security features more prominently among the subject\'s priorities than it did at the outset of their career.',
+  'Security features more prominently among the subject\'s priorities than it once did.',
   'The subject is capable of compensating for known weaknesses and has been doing so for some years.',
   'Disciplined and unhurried outwardly, the subject tends toward worry and insecurity inwardly.',
-  'The subject occasionally questions whether their standing is as secure as it appears.',
+  'The subject occasionally questions whether they are as necessary to others as they would wish to be.',
   'Change is welcomed in principle and resisted in practice.',
   'The subject does not accept the assurances of others without satisfactory evidence, having learned this at some cost.',
   'A tendency toward sociability is moderated by a marked preference for solitary recovery.',
-  'The subject has, on occasion, been considerably more generous with their time than the work warranted.',
+  'The subject carries more of the household\'s routine administration than is generally recognised, including by the subject.',
   'Certain decisions are revisited more frequently than the subject would report if asked.',
   'The subject is inclined to attribute their successes to circumstance and their failures to themselves.',
   'Work is begun with enthusiasm and completed with diminishing conviction.',
   'The subject values competence in others and is quietly impatient with its absence.',
   'A degree of dissatisfaction persists that the subject has not been able to locate precisely.',
-  'The subject is more affected by minor professional discourtesies than they would care to admit.',
+  'Obligations to family are met reliably, and at a cost the subject does not itemise.',
   'The subject has become steadily better at work they had understood to be temporary.',
   'The subject possesses reserves of resolve that emerge chiefly under pressure, and has drawn on them more than once.'
 ];
@@ -46,32 +56,35 @@ export const BARNUM = [
 // Criterion for every entry, unchanged: privately near-universal, publicly
 // unadmitted. True and unspeakable, never random.
 //
-// A known audience makes that criterion far easier to hit. Arm-licking is
-// universal-human; "has rewritten a resignation message without sending it"
-// is universal to THESE readers and lands twice as hard.
+// Broadened alongside the Barnum pool, and for the same reason — the tiers
+// had become an almost entirely professional escalation. Domestic material
+// clears the criterion just as easily and often harder: the relief at a
+// cancelled arrangement, the sharpness at home that would never be shown at
+// work. Those are not softer than the career lines, they are less defended,
+// because nobody has ever had to have a professional face about them.
 export const INSINUATION_TIERS = [
   [
-    'Subjects in this band commonly maintain an accumulation of professional reading that has not been read.',
+    'Subjects in this band commonly maintain an accumulation of reading that has not been read.',
     'The subject is likely to have rehearsed portions of this assessment before beginning it.',
     'Photographs of the subject are, in the subject\'s estimation, rarely representative.',
-    'The subject retains configuration for systems that no longer exist.'
+    'A domestic repair outstanding for longer than the subject would state is characteristic of this profile.'
   ],
   [
     'Periodic examination of former colleagues\' current positions is characteristic of this profile.',
-    'Rehearsal of unresolved professional disagreements during periods of low cognitive demand is characteristic of this profile.',
+    'Rehearsal of unresolved disagreements during periods of low cognitive demand is characteristic of this profile.',
     'The subject has composed correspondence they did not send and did not delete.',
-    'Subjects in this band commonly estimate what their position would now be had the earlier offer been accepted.'
+    'The subject has experienced relief at the cancellation of an arrangement they had agreed to.'
   ],
   [
     'The subject has calculated, to the year, how long they would need to continue.',
     'There is a moderate likelihood the subject has rewritten a resignation message without sending it.',
-    'The subject has estimated the age at which their present skills will cease to be marketable, and revises this estimate downward.',
+    'The subject has been shorter with a member of their household than they would be with a colleague, and has not returned to it since.',
     'The subject has, on at least one occasion, searched for their own name.'
   ],
   [
     'The subject is advised that the practice of estimating one\'s remaining working years during meetings is not diagnostic.',
     'It is recommended the subject discontinue the composition of replies that are not sent.',
-    'The subject may wish to reduce the frequency with which they revisit a decision taken in their thirties.',
-    'No accommodation is required, though the subject would benefit from ceasing to rehearse the account of their career they would give if asked.'
+    'The subject would benefit from ceasing to redo household tasks already completed by somebody else.',
+    'No accommodation is required, though the subject would benefit from ceasing to rehearse the account of their life they would give if asked.'
   ]
 ];
