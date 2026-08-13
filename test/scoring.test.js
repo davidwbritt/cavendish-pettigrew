@@ -77,7 +77,7 @@ test('composure falls as panic distance rises', () => {
 test('the headline centile is always flattering', () => {
   for (let s = 0; s < 300; s++) {
     const c = headlineCentile(mulberry32(s));
-    assert.ok(c >= 91 && c <= 96, `centile ${c} is not flattering`);
+    assert.ok(c >= 75 && c <= 85, `centile ${c} is not in the 75-85 range`);
   }
 });
 

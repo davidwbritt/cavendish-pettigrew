@@ -102,7 +102,13 @@ export function composureAssessed(t) {
 }
 
 export function headlineCentile(rng) {
-  return 91 + Math.floor(rng() * 6);
+  // Headline centile is always flattering — 75th to 85th, never lower.
+  // Still comfortably complimentary, but far more credible than the 91-96 band.
+  // A clinical instrument that hands everyone a 94th centile starts to read as
+  // a horoscope; a 75-85 band reads as a real measurement being mildly
+  // complimentary, which makes the invented faculties and the Barnum prose
+  // underneath do more work.
+  return 75 + Math.floor(rng() * 11);
 }
 
 const ADJECTIVES = {
