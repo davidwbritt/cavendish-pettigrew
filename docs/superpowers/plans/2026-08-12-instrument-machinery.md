@@ -544,7 +544,8 @@ git commit -m "feat: question schema, composition rules, and provisional data se
 - Consumes: nothing
 - Produces: `createTranscript() -> transcript`, `recordAnswer(t, entry)`, `recordAmendment(t, n, choice)`, `amendmentCount(t) -> number`, `entryFor(t, n) -> entry|undefined`
 - Entry shape: `{ n, choice: number|null, realElapsedMs, displayedElapsedMs, changes, trick: string|null }`
-- Transcript shape: `{ entries: [], amendments: [], telemetry: { freezePointerDistance: 0 } }`
+- Transcript shape: `{ entries: [], amendments: [], telemetry: { freezePointerDistance: 0, composureAssessed: false } }`
+  (`composureAssessed` amended in during Task 12 — see "Known gap carried from the spec" below)
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1187,6 +1188,8 @@ git commit -m "feat: transcript falsification with CRT-priority selection"
 **Interfaces:**
 - Consumes: `questionByNumber`/`QUESTIONS`, `amendmentCount`, `RECOVERY_QUESTIONS`, `shuffle`
 - Produces: `FACULTIES` (array of `{ key, label }`), `computeFaculties(transcript, falsifications) -> Record<key, number>`, `headlineCentile(rng) -> 91..96`, `classify(faculties) -> string`, `AMENDMENT_PENALTY` (2), `preliminaryScore(base, amendments) -> number`, `SCORE_FLOOR` (0)
+  Amended during Task 12: also produces `composureAssessed(transcript) -> boolean`, reading
+  `transcript.telemetry.composureAssessed` — see "Known gap carried from the spec" below.
 
 > **Spec §7 requirement:** sub-scores are computed from the **altered**
 > transcript, not the real one. This is what makes the certificate internally
@@ -1436,6 +1439,10 @@ git commit -m "feat: seven-faculty scoring, flattering centile, clinical classif
 - Produces: `BARNUM` (24 strings), `INSINUATION_TIERS` (4 arrays of 4), `drawStatements(rng) -> { barnum: string[10], insinuations: string[4] }`, `buildReport(input) -> report`
 - `buildReport` input: `{ faculties, centile, classification, displayName, amendmentCount, rng }`
 - `report` shape: `{ header, summary: string[], interpretation: [{ facultyKey, label, score, paragraph }], observations: string[], recommendations: string[], closer }`
+- Amended during Task 12: `buildReport` input gains an optional `composureAssessed = true`. When
+  explicitly `false`, the `composure` entry in `interpretation` gets `score: null` and a fixed
+  clinical-note paragraph instead of a number — see "Known gap carried from the spec" below.
+  Task 14's certificate rendering must treat `score === null` as "no bar, no number" for that row.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -2121,7 +2128,10 @@ git commit -m "feat: six DOM trick effects with touch substitutions"
 
 **Interfaces:**
 - Consumes: nothing
-- Produces: `createSyntheticCursor(root) -> { attach, detach, freeze, fling, position, distanceTravelled }`, `runFinale({ cursor, timerDriver, onDone })`, `FINALE_FREEZE_MS` (2200), `shouldRunFinale() -> boolean`
+- Produces: `createSyntheticCursor(root) -> { attach, detach, freeze, fling, position, distanceTravelled }`, `runFinale({ cursor, timerDriver, onDistance }) -> Promise` (with a `.cancel()` attached), `FINALE_FREEZE_MS` (2200), `shouldRunFinale() -> boolean`
+  (this line originally said `onDone`; Step 3's own code and Task 15's usage both use `onDistance` —
+  corrected here to match. `.cancel()` is new: lets Task 15 stop the finale early if the question
+  advances mid-fling, e.g. from a blind click; see the runFinale doc comment in the implementation.)
 
 - [ ] **Step 1: Write the failing test**
 
@@ -2698,7 +2708,7 @@ import { scheduleTricks } from './tricks.js';
 import { introduceTypo, displayNameFor } from './name.js';
 import { createTranscript, recordAnswer, amendmentCount } from './transcript.js';
 import { chooseFalsifications } from './falsify.js';
-import { computeFaculties, headlineCentile, classify, preliminaryScore } from './scoring.js';
+import { computeFaculties, headlineCentile, classify, preliminaryScore, composureAssessed } from './scoring.js';
 import { buildReport } from './report.js';
 import { applyTrick } from './ui/effects.js';
 import { createSyntheticCursor, runFinale, shouldRunFinale } from './ui/cursor.js';
@@ -2770,9 +2780,19 @@ function nextQuestion() {
 
   if (question.n === FINALE_QUESTION && shouldRunFinale()) {
     const cursor = createSyntheticCursor(document.body);
+    // The finale returned by runFinale carries a .cancel() (attached to its
+    // Promise) — capture it and call it from advance() below if the taker
+    // manages a blind click mid-fling, so a Q24 render is never fought over
+    // by a still-flying Q23 cursor. Composure is only ever marked assessed
+    // inside this same onDistance callback, alongside the distance itself —
+    // if the finale is aborted (Esc, any key, or the taker never reaches
+    // this callback), composureAssessed correctly stays false.
     runFinale({
       cursor, timerDriver: screen.driver,
-      onDistance: d => { transcript.telemetry.freezePointerDistance = d; }
+      onDistance: d => {
+        transcript.telemetry.freezePointerDistance = d;
+        transcript.telemetry.composureAssessed = true;
+      }
     });
   }
 }
@@ -2800,7 +2820,8 @@ function showCertificate() {
   const report = buildReport({
     faculties, centile, classification: classify(faculties),
     displayName: displayNameFor(24, typo),
-    amendmentCount: amendmentCount(transcript), rng
+    amendmentCount: amendmentCount(transcript), rng,
+    composureAssessed: composureAssessed(transcript)
   });
   void preliminaryScore(100, amendmentCount(transcript));
   renderCertificate(root, {
@@ -2928,8 +2949,33 @@ Not part of this plan. Once the machinery is green:
 
 **Spec §10 item 5** — a `prefers-reduced-motion` taker skips the Q23 finale, so
 `telemetry.freezePointerDistance` stays 0 and COMPOSURE reports a perfect 100.
-Task 8 computes it correctly but the input is absent. **Resolve during Task 12**
-by picking one: derive composure from mid-test answer-change velocity instead, or
-suppress the index on the certificate with the note
-`COMPOSURE — not assessed under modified administration conditions.` The second
-is cheaper and arguably funnier.
+Task 8 computes it correctly but the input is absent.
+
+**RESOLVED in Task 12** — option (a), suppression, chosen as cheaper and funnier.
+Mechanism:
+- `src/transcript.js`: `createTranscript()`'s telemetry gains `composureAssessed: false`.
+- `src/ui/cursor.js`'s `runFinale` is unchanged in shape; it's the **caller's**
+  `onDistance` callback (Task 15's wiring, above) that must set
+  `transcript.telemetry.composureAssessed = true` in the same breath as
+  `freezePointerDistance = d` — composureAssessed only ever becomes true if the
+  finale's freeze phase actually completed uninterrupted (not aborted by Esc/any
+  keydown, not skipped by shouldRunFinale() returning false).
+- `src/scoring.js` exports a new pure reader, `composureAssessed(transcript) -> boolean`.
+  `computeFaculties` itself is UNCHANGED — it still computes a numeric composure
+  score from `freezePointerDistance` regardless (a caller that ignores assessment
+  entirely still gets a valid 0-100 integer, so this can't NaN or break Task 8's
+  existing tests). Suppression is a display-layer decision, not a scoring-layer one.
+- `src/report.js`'s `buildReport` gains an optional `composureAssessed = true`
+  (default preserves old behaviour for every existing caller/test that doesn't
+  pass it). When explicitly `false`, the `composure` entry of
+  `report.interpretation` gets `score: null` and its `paragraph` replaced with
+  the fixed note `COMPOSURE — not assessed under modified administration
+  conditions. The procedure that measures this index was not administered for
+  this sitting. No score is reported.` — verbatim clinical register, matching
+  the certificate's total-seriousness tone elsewhere. The shared Barnum-statement
+  pool is still drawn from (and discarded) for the suppressed slot, so which
+  statement lands in every OTHER faculty's paragraph and in the closer is
+  identical for a given seed whether composure is suppressed or not.
+- **Task 14 must** treat `interpretation` entries with `score === null` as
+  "no bar, no number" in the index table — the row still needs to render
+  (the paragraph text carries the clinical note), just without a numeric bar.
