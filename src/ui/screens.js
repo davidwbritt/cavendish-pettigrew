@@ -277,3 +277,27 @@ export function renderCertificate(root, { report, faculties, centile, onDebrief 
     el('a', { class: 'debrief-link', href: '#debrief', text: 'About this instrument', onclick: onDebrief })
   );
 }
+
+// The debrief page. Reached only via the certificate's "About this
+// instrument" link (renderCertificate's onDebrief above) — never shown
+// automatically, and never linked from anywhere else. This is also the
+// ONLY screen carrying the Ko-fi URL: it must never appear on the
+// certificate itself, where a donation ask would puncture the tone (see
+// Task 15's binding constraints and test/integration.test.js's
+// self-containment check, which exempts exactly this one URL).
+export function renderDebrief(root) {
+  // Same leaked-rAF-loop guard every other screen opens with (see the
+  // module-level activeStop comment above).
+  if (activeStop) activeStop();
+
+  clear(root);
+  root.append(
+    el('h2', { class: 'section-title', text: 'ABOUT THIS INSTRUMENT' }),
+    el('p', { text: 'The Cavendish–Pettigrew Reflective Aptitude Inventory does not measure anything. It is a demonstration of two well-documented effects.' }),
+    el('p', { text: 'The first is cognitive reflection: some questions have an intuitive answer that arrives quickly and is confidently wrong. The opening items were real, and if you got some of them wrong, you got them wrong the way most people do.' }),
+    el('p', { text: 'The second is the Barnum, or Forer, effect: people rate vague, universally true descriptions as highly accurate personal assessments. Every statement in your report was drawn from a fixed pool. Somebody else received most of the same sentences.' }),
+    el('p', { text: 'The timer always showed forty-five seconds. It did not always give you forty-five seconds. Some of your clicks were interfered with. Three answers on the review sheet were changed before you saw them, and your name was misspelled from question eleven onward.' }),
+    el('p', { text: 'None of it was about you. Thank you for sitting it.' }),
+    el('a', { class: 'debrief-link', href: 'https://ko-fi.com/clevermonkey', text: 'ko-fi.com/clevermonkey' })
+  );
+}
