@@ -316,7 +316,21 @@
       const kappa = [...$$('.index-row')].map(e => e.textContent)
         .find(t => /RESPONSE CONSISTENCY/.test(t));
       log('certificate: kappa row = ' + (kappa || 'MISSING').replace(/\s+/g, ' ').trim().slice(0, 90));
-      $('.debrief-link')?.click();
+      // Which links the certificate offers. The "About this instrument"
+      // link is currently withheld — the debrief gives the whole game away —
+      // so ko-fi should be the only one, and the debrief unreachable.
+      const links = $$('.debrief-link').map(a => a.textContent.trim());
+      log('certificate: links = ' + JSON.stringify(links));
+      const about = $$('.debrief-link').find(a => /about this instrument/i.test(a.textContent));
+      log('certificate: debrief link withheld? ' + !about);
+      if (!about) {
+        log('debrief: not reachable from the app (expected while the link is withheld);'
+          + ' page still covered by debrief.test.js and answerkey.test.js');
+        finish();
+        return;
+      }
+
+      about.click();
       await sleep(30);
       log('after debrief click, screen = ' + screenKind());
       await sleep(60);

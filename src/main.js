@@ -269,10 +269,17 @@ function renderCertificateScreen() {
   const { report, faculties, centile } = certificateState;
   renderCertificate(root, {
     report, faculties, centile,
-    onDebrief: e => { e.preventDefault(); showDebrief(); }
+    // WITHHELD (owner's call, 2026-08-13): passing onDebrief is what makes
+    // the certificate render its "About this instrument" link. The debrief
+    // explains every trick, and the game is not currently being given away.
+    // Restore by uncommenting — showDebrief below is deliberately kept.
+    // onDebrief: e => { e.preventDefault(); showDebrief(); }
   });
 }
 
+// Unreferenced while the certificate's link is withheld (see the commented
+// onDebrief above). Kept, not deleted: the page is finished, tested, and one
+// line away from being live again.
 function showDebrief() {
   renderDebrief(root, {
     typoApplied: typo.kind !== 'none',

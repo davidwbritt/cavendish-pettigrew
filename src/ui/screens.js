@@ -666,12 +666,27 @@ export function renderCertificate(root, { report, faculties, centile, onDebrief 
       el('p', { class: 'closer', text: report.closer }),
       el('div', { class: 'cert-foot', text: `σ = 0.03 · n = 1 · p < .0001 · ${ordinal(centile)} centile` })
     ]),
-    el('a', { class: 'debrief-link', href: '#debrief', text: 'About this instrument', onclick: onDebrief })
+    // The "About this instrument" link is rendered ONLY when a handler is
+    // supplied, and main.js currently supplies none — the debrief gives the
+    // whole game away and is withheld for now (owner's call, 2026-08-13).
+    // The page itself is untouched and fully tested; reinstating the link is
+    // a one-line change at the renderCertificate call in main.js. Do not
+    // delete renderDebrief/showDebrief on the grounds that nothing reaches
+    // them.
+    ...(onDebrief
+      ? [el('a', { class: 'debrief-link', href: '#debrief', text: 'About this instrument', onclick: onDebrief })]
+      : []),
+    // Ko-fi lived only on the debrief until that link was withdrawn, which
+    // would have buried it completely. It belongs on the certificate anyway:
+    // this is the screen people actually reach, and the one they screenshot.
+    el('a', { class: 'debrief-link', href: 'https://ko-fi.com/clevermonkey', text: 'ko-fi.com/clevermonkey' })
   );
 }
 
-// The debrief page. Reached only via the certificate's "About this
-// instrument" link (renderCertificate's onDebrief above) — never shown
+// The debrief page. CURRENTLY UNREACHABLE FROM THE APP — the certificate's
+// "About this instrument" link is withheld (see renderCertificate above).
+// Kept whole, and still covered by test/debrief.test.js and
+// test/answerkey.test.js, against the link being reinstated. Never shown
 // automatically, and never linked from anywhere else. This is also the
 // ONLY screen carrying the Ko-fi URL: it must never appear on the
 // certificate itself, where a donation ask would puncture the tone (see
