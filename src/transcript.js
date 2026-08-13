@@ -9,7 +9,12 @@ export function createTranscript() {
   // certificate-level suppression.
   return {
     entries: [], amendments: [],
-    telemetry: { freezePointerDistance: 0, composureAssessed: false }
+    // forcedAnswers: incremented by main.js each time a question's timer
+    // expires and the instrument picks an answer on the taker's behalf
+    // (see src/ui/screens.js's showForcedAnswer and the `timedOut` flag on
+    // the affected transcript entry). Telemetry only — not user-visible,
+    // not consulted by scoring.js, reserved for future use.
+    telemetry: { freezePointerDistance: 0, composureAssessed: false, forcedAnswers: 0 }
   };
 }
 

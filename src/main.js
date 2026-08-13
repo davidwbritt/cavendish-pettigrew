@@ -1,4 +1,4 @@
-import { mulberry32 } from './rng.js';
+import { mulberry32, pick } from './rng.js';
 import { QUESTIONS } from './questions.js';
 import { scheduleTricks } from './tricks.js';
 import { introduceTypo, displayNameFor } from './name.js';
@@ -33,18 +33,41 @@ function start(name) {
   nextQuestion();
 }
 
+// Runs the trick's own detach() and the Q23 finale's cancel() SYNCHRONOUSLY
+// — never deferred into or after a pause. A trick's listeners/timers, and
+// the finale's fling loop, must never be able to act against a question
+// that has already been decided (see Task 15's carry-over constraints and
+// the finale-cancel fix in the original wiring). Both onChoose and onExpire
+// below call this at the moment of commit, before scheduling any pause.
+function teardownTrick(detach, finale) {
+  if (detach) detach();
+  if (finale) finale.cancel();
+}
+
 function nextQuestion() {
   if (index >= QUESTIONS.length) return showReview();
   const question = QUESTIONS[index];
   let detach = null;
   let finale = null;
 
-  const commit = (choice, realElapsedMs, driver) => {
+  // Moves to the next question. Only ever called as the onDone callback of
+  // screen.pauseThenAdvance/showForcedAnswer (screens.js) — i.e. only after
+  // a pause screens.js itself schedules and tracks (and will cancel via the
+  // module's activeStop guard if this screen goes away for any reason
+  // first). Never called directly from a click/expiry handler.
+  const goNext = () => { index++; nextQuestion(); };
+
+  const commit = (choice, realElapsedMs, driver, timedOut = false) => {
     recordAnswer(transcript, {
       n: question.n, choice,
       realElapsedMs,
       displayedElapsedMs: 45000 - driver.displayedRemainingMs(),
-      changes: 0, trick: schedule.get(question.n) ?? null
+      changes: 0, trick: schedule.get(question.n) ?? null,
+      // Deliberately NOT hidden from the taker (see reviewRows/renderReview
+      // in screens.js — the review sheet brands a REFUSED row even while
+      // showing the forced answer exactly like any other). Only ever true
+      // via onExpire below; every click-driven commit passes the default.
+      timedOut
     });
   };
 
@@ -53,11 +76,23 @@ function nextQuestion() {
     displayName: displayNameFor(question.n, typo),
     onChoose: (choice, elapsed) => {
       commit(choice, elapsed, screen.driver);
-      advance(screen, detach, finale);
+      teardownTrick(detach, finale);
+      // Holds the black `.option[aria-pressed="true"]` fill on screen
+      // briefly so the taker actually sees their answer register, then
+      // advances. Tracked/cancellable by screens.js — see renderQuestion's
+      // pauseThenAdvance.
+      screen.pauseThenAdvance(goNext);
     },
     onExpire: elapsed => {
-      commit(null, elapsed, screen.driver);
-      advance(screen, detach, finale);
+      // The instrument answers FOR the taker. MUST come from the injected
+      // seeded rng — no Math.random() anywhere in this project.
+      const choice = pick(rng, [0, 1, 2, 3]);
+      commit(choice, elapsed, screen.driver, true);
+      transcript.telemetry.forcedAnswers++;
+      teardownTrick(detach, finale);
+      // Shows the clinical red notice, marks the forced option selected,
+      // holds, then advances — see renderQuestion's showForcedAnswer.
+      screen.showForcedAnswer(choice, goNext);
     }
   });
 
@@ -69,7 +104,11 @@ function nextQuestion() {
       // screens.js registers the real onclick first, so a later-attached
       // listener can never pre-empt it. See Task 11 findings.
       setInterceptor: screen.setInterceptor,
-      onChoose: choice => { commit(choice, screen.driver.elapsedMs(), screen.driver); advance(screen, detach, finale); },
+      onChoose: choice => {
+        commit(choice, screen.driver.elapsedMs(), screen.driver);
+        teardownTrick(detach, finale);
+        screen.pauseThenAdvance(goNext);
+      },
       rng,
       isTouch
     });
@@ -78,12 +117,17 @@ function nextQuestion() {
   if (question.n === FINALE_QUESTION && shouldRunFinale()) {
     const cursor = createSyntheticCursor(document.body);
     // The finale returned by runFinale carries a .cancel() (attached to its
-    // Promise) — capture it and call it from advance() below if the taker
-    // manages a blind click mid-fling, so a Q24 render is never fought over
-    // by a still-flying Q23 cursor. Composure is only ever marked assessed
-    // inside this same onDistance callback, alongside the distance itself —
-    // if the finale is aborted (Esc, any key, or the taker never reaches
-    // this callback), composureAssessed correctly stays false.
+    // Promise) — capture it and call it from teardownTrick() above if the
+    // taker manages a blind click mid-fling, so a Q24 render is never
+    // fought over by a still-flying Q23 cursor. Composure is only ever
+    // marked assessed inside this same onDistance callback, alongside the
+    // distance itself — if the finale is aborted (Esc, any key, or the
+    // taker never reaches this callback), composureAssessed correctly
+    // stays false. The finale also freezes the timer for its duration, so
+    // expiry cannot fire mid-freeze — see timer-driver.js's freeze()/
+    // resume(); if the finale is cancelled mid-flight, resume() picks the
+    // real elapsed time back up exactly where it left off and the question
+    // continues normally, including being able to expire afterwards.
     finale = runFinale({
       cursor, timerDriver: screen.driver,
       onDistance: d => {
@@ -92,14 +136,6 @@ function nextQuestion() {
       }
     });
   }
-}
-
-function advance(screen, detach, finale) {
-  screen.stop();
-  if (detach) detach();
-  if (finale) finale.cancel();
-  index++;
-  nextQuestion();
 }
 
 function showReview() {

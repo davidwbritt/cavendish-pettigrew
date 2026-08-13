@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { mulberry32 } from '../src/rng.js';
+import { mulberry32, pick } from '../src/rng.js';
 import { createTranscript, recordAnswer, amendmentCount } from '../src/transcript.js';
 import { questionByNumber, QUESTIONS } from '../src/questions.js';
 import { scheduleTricks, validateSchedule } from '../src/tricks.js';
@@ -139,6 +139,62 @@ test('a run that skips the finale never reports a composure score', () => {
   const summaryText = report.summary.join(' ');
   assert.ok(!summaryText.includes('COMPOSED'),
     'the headline must not call an unmeasured taker COMPOSED');
+});
+
+// BEHAVIOUR CHANGE: a timed-out question no longer commits choice: null and
+// silently vanishes — the instrument now picks a random option (via the
+// injected seeded rng, NEVER Math.random()) and commits it, flagged
+// timedOut: true. This mirrors exactly what main.js's onExpire handler
+// does: pick(rng, [0, 1, 2, 3]), then recordAnswer(..., timedOut: true).
+test('a run where every question times out yields 24 entries, all with integer choices, all flagged timedOut', () => {
+  const rng = mulberry32(3);
+  const t = createTranscript();
+  for (const q of QUESTIONS) {
+    const choice = pick(rng, [0, 1, 2, 3]);
+    recordAnswer(t, {
+      n: q.n, choice, realElapsedMs: 45000, displayedElapsedMs: 45000,
+      changes: 0, trick: null, timedOut: true
+    });
+  }
+  assert.equal(t.entries.length, 24);
+  for (const e of t.entries) {
+    assert.ok(Number.isInteger(e.choice) && e.choice >= 0 && e.choice <= 3,
+      `Q${e.n}: forced choice ${e.choice} is not a valid option index`);
+    assert.equal(e.timedOut, true, `Q${e.n}: must be flagged timedOut`);
+  }
+
+  // Certificate assembly must still work cleanly from an all-forced
+  // transcript, and this documents the side effect flagged in this task's
+  // report: premiseTolerance counts a choice as "engaged" whenever it's an
+  // integer, so a taker who lets EVERY question time out now scores as
+  // fully engaged rather than not at all. Documented, not fixed here —
+  // scoring.js is deliberately untouched by this change.
+  const faculties = computeFaculties(t);
+  assert.equal(faculties.premiseTolerance, 100,
+    'documented side effect: forced integer choices read as full engagement — see report, not a bug');
+});
+
+// The `timedOut` flag must distinguish the two commit paths precisely: true
+// only for a forced (expired) answer, false for a real click-committed one.
+// Mirrors main.js's two commit() call shapes exactly — default timedOut for
+// the onChoose path, explicit `true` for onExpire.
+test('timedOut is set only on the expiry path and never on a click-committed answer', () => {
+  const t = createTranscript();
+  for (const q of QUESTIONS) {
+    const isExpired = q.n % 4 === 0; // every 4th question times out; the rest are answered normally
+    recordAnswer(t, {
+      n: q.n, choice: isExpired ? 1 : (q.correct ?? 0),
+      realElapsedMs: isExpired ? 45000 : 6000,
+      displayedElapsedMs: isExpired ? 45000 : 12000,
+      changes: 0, trick: null,
+      timedOut: isExpired // exactly main.js's commit(..., timedOut) contract
+    });
+  }
+  for (const e of t.entries) {
+    const shouldBeExpired = e.n % 4 === 0;
+    assert.equal(e.timedOut, shouldBeExpired, `Q${e.n}: timedOut flag disagrees with its commit path`);
+  }
+  assert.equal(t.entries.filter(e => e.timedOut).length, 6, 'exactly the 6 expired questions are flagged');
 });
 
 test('the built artifact is self-contained', async () => {

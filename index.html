@@ -46,6 +46,10 @@ body {
 }
 .option[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 .option-letter { font-family: var(--mono); font-size: .78rem; }
+.forced-notice {
+  font-family: var(--mono); font-weight: 700; font-size: .78rem;
+  letter-spacing: .04em; color: var(--red); margin: 1.4rem 0 0;
+}
 .name-input {
   font: inherit; background: transparent; border: 0; border-bottom: 1px solid var(--ink);
   padding: .3rem 0; width: 100%; margin-bottom: 2rem;
@@ -81,6 +85,10 @@ body.cursor-hidden, body.cursor-hidden * { cursor: none !important; }
   display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem .8rem;
 }
 .review-n, .review-time { font-family: var(--mono); font-size: .78rem; }
+.refused {
+  font-family: var(--mono); font-weight: 700; font-size: .64rem;
+  letter-spacing: .12em; color: var(--red);
+}
 .review-row-head .edit { margin-left: auto; }
 .review-prompt { margin: .5rem 0 .4rem; overflow-wrap: break-word; }
 .review-answer {

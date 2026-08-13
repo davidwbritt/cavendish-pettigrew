@@ -11,6 +11,32 @@ import { ordinal } from '../report.js';
 // forgot to capture and call the returned stop().
 let activeStop = null;
 
+// A question's outcome — a real click, or expiry — is decided AT MOST ONCE.
+// Pure and DOM-free so the "expiry racing a click can only ever produce one
+// commit" guarantee is unit-testable directly (no jsdom needed — see
+// applyAmendment/reviewRows/certificateIndexRows above for the same
+// extraction pattern). renderQuestion below routes both the click handler's
+// real (non-swallowed) commit AND the rAF loop's expiry detection through
+// ONE shared gate instance per question, so whichever fires first — in
+// practice never truly simultaneous, since JS is single-threaded, but the
+// two are scheduled from independent sources (a DOM event vs a rAF
+// callback) and must not be allowed to depend on which happens to run
+// first — wins, and the other is silently dropped. This is what makes "no
+// double-advance" an explicit, testable invariant rather than a hope about
+// timing.
+export function createOutcomeGate() {
+  let settled = false;
+  return {
+    fire(fn) {
+      if (settled) return false;
+      settled = true;
+      fn();
+      return true;
+    },
+    get settled() { return settled; }
+  };
+}
+
 export function renderHeader(displayName) {
   return el('div', { class: 'form-header' }, [
     el('div', { class: 'field' }, [
@@ -38,6 +64,18 @@ export function renderLanding(root, onStart) {
   input.focus();
 }
 
+// How long a committed selection's black fill (the existing
+// `.option[aria-pressed="true"]` rule) is held on screen before advancing —
+// long enough to register, short enough not to drag across 24 questions.
+export const SELECTION_PAUSE_MS = 450;
+
+// How long the forced-answer notice is held on screen after a timeout —
+// long enough to read one clinical sentence.
+export const FORCED_ANSWER_PAUSE_MS = 1500;
+
+export const FORCED_ANSWER_TEXT =
+  'NO RESPONSE RECORDED. A RESPONSE HAS BEEN SELECTED ON YOUR BEHALF.';
+
 export function renderQuestion(root, { question, displayName, onChoose, onExpire }) {
   // Kill any still-running loop from a prior screen before starting a new
   // one — the caller may forget to call the previous stop(), but this
@@ -49,16 +87,45 @@ export function renderQuestion(root, { question, displayName, onChoose, onExpire
   const digits = el('span', { class: 'timer-digits', text: '0:45' });
   const bar = el('div', { class: 'timer-bar-fill' });
 
-  let stopped = false;
-  const stop = () => {
+  let stopped = false;      // the rAF tick loop
+  let pauseTimer = null;    // the post-commit hold (selection pause OR the
+                             // forced-answer notice) — tracked exactly like
+                             // every other timer this project has been
+                             // bitten by leaving running past its screen.
+
+  const stopTick = () => {
     if (stopped) return;
     stopped = true;
     cancelAnimationFrame(raf);
+  };
+
+  // The screen's full teardown: stops the rAF loop AND cancels any pending
+  // post-commit pause. This is what activeStop calls when a later screen
+  // renders over this one (see the module-level comment above), and what a
+  // caller who captures the return value can call directly. Idempotent —
+  // safe to call more than once, from either source.
+  const stop = () => {
+    stopTick();
+    if (pauseTimer !== null) { clearTimeout(pauseTimer); pauseTimer = null; }
     if (activeStop === stop) activeStop = null;
   };
 
+  // Exactly one of a real click or an expiry may ever produce a commit —
+  // see createOutcomeGate above. Both paths below route through this same
+  // instance.
+  const outcome = createOutcomeGate();
+
   const selectOption = (i) => {
     options.forEach((btn, idx) => btn.setAttribute('aria-pressed', String(idx === i)));
+  };
+
+  const schedulePause = (ms, fn) => {
+    // Defensive only — the outcome gate already guarantees at most one of
+    // pauseThenAdvance/showForcedAnswer is ever called per question, so
+    // pauseTimer should never already be set here. If that invariant is
+    // ever broken by a future change, still never let two pauses stack.
+    if (pauseTimer !== null) clearTimeout(pauseTimer);
+    pauseTimer = setTimeout(() => { pauseTimer = null; fn(); }, ms);
   };
 
   // Owned here so a trick can only ever act through a hook the screen
@@ -72,15 +139,18 @@ export function renderQuestion(root, { question, displayName, onChoose, onExpire
     el('button', {
       class: 'option', 'data-index': String(i), 'aria-pressed': 'false',
       onclick: () => {
+        if (outcome.settled) return; // the question is already decided — ignore (no re-entry, no second commit)
         let index = i;
         if (interceptor) {
           const result = interceptor(i);
-          if (result === null) return; // swallowed — no selection, no commit
+          if (result === null) return; // swallowed — no selection, no commit, taker stays on the question
           index = result;              // possibly remapped
         }
-        selectOption(index);
-        stop();
-        onChoose(index, driver.elapsedMs());
+        outcome.fire(() => {
+          selectOption(index);
+          stopTick();
+          onChoose(index, driver.elapsedMs());
+        });
       }
     }, [
       el('span', { class: 'option-letter', text: 'ABCD'[i] }),
@@ -104,13 +174,43 @@ export function renderQuestion(root, { question, displayName, onChoose, onExpire
     const s = Math.ceil(remaining / 1000);
     digits.textContent = `0:${String(s).padStart(2, '0')}`;
     bar.style.width = `${(remaining / 45000) * 100}%`;
-    if (driver.expired()) { stop(); onExpire(driver.elapsedMs()); return; }
+    if (driver.expired()) {
+      outcome.fire(() => {
+        stopTick();
+        onExpire(driver.elapsedMs());
+      });
+      return;
+    }
     raf = requestAnimationFrame(tick);
   };
   let raf = requestAnimationFrame(tick);
   activeStop = stop;
 
-  return { driver, stop, optionElements: options, setInterceptor };
+  // Called by main.js's onChoose handler once a real (non-swallowed) click
+  // has already been committed to the transcript and any active trick's
+  // detach()/finale.cancel() has already run SYNCHRONOUSLY (same
+  // discipline this project applies everywhere else — teardown never moves
+  // into or after a pause). The black `.option[aria-pressed="true"]` fill
+  // is already showing (selectOption ran inside the outcome gate above)
+  // and the rAF face is already stopped — this only holds briefly so the
+  // taker actually sees it, then calls onDone (main.js's index++ /
+  // nextQuestion()). Tracked by the same pauseTimer stop() above clears,
+  // so a screen that goes away for any reason cannot leave this pending.
+  function pauseThenAdvance(onDone) {
+    schedulePause(SELECTION_PAUSE_MS, onDone);
+  }
+
+  // Called by main.js's onExpire handler under the same already-committed,
+  // already-torn-down discipline as pauseThenAdvance above. Marks the
+  // forced option selected, prints the clinical red notice (deliberately
+  // flat register — no apology, no explanation), holds, then calls onDone.
+  function showForcedAnswer(index, onDone) {
+    selectOption(index);
+    root.append(el('p', { class: 'forced-notice', text: FORCED_ANSWER_TEXT }));
+    schedulePause(FORCED_ANSWER_PAUSE_MS, onDone);
+  }
+
+  return { driver, stop, optionElements: options, setInterceptor, pauseThenAdvance, showForcedAnswer };
 }
 
 // The letter alone means nothing to a taker who never memorised which
@@ -153,7 +253,13 @@ export function reviewRows(transcript, falsifications) {
         shown,
         answerText: answerTextFor(e.n, shown),
         displayedElapsedMs: e.displayedElapsedMs,
-        amended: false
+        amended: false,
+        // The instrument's own forced answer is shown exactly like any
+        // other row — same letter, same text, no visual distinction there
+        // — but the row is additionally branded REFUSED (renderReview
+        // below). The contradiction (presented as theirs AND branded for
+        // not answering) is deliberate; do not resolve it here.
+        timedOut: Boolean(e.timedOut)
       };
     });
 }
@@ -185,6 +291,14 @@ export function renderReview(root, { transcript, falsifications, displayName, ba
     const answerLetter = el('span', { class: 'answer-letter', text: letterPrefix(row.shown) });
     const answerText = el('span', { class: 'answer-text', text: answerBody(row) });
     const stamp = el('span', { class: 'correction' });
+    // A quiet accusation, not a stamp: small letterspaced mono, --red, no
+    // box/icon/background/rotation. The −2 correction stamp must stay the
+    // loudest red thing on the page. This coexists independently of the
+    // falsification marker — a row can be both REFUSED (the instrument
+    // answered for the taker) and falsified (the review sheet then lies
+    // about which option that was); neither marker knows or cares about
+    // the other.
+    const refused = row.timedOut ? el('span', { class: 'refused', text: 'REFUSED' }) : null;
 
     const edit = el('button', {
       class: 'edit', text: 'EDIT',
@@ -204,6 +318,7 @@ export function renderReview(root, { transcript, falsifications, displayName, ba
       el('div', { class: 'review-row-head' }, [
         el('span', { class: 'review-n', text: `Q${row.n}` }),
         el('span', { class: 'review-time', text: `0:${String(Math.round(row.displayedElapsedMs / 1000)).padStart(2, '0')}` }),
+        refused,
         edit,
         stamp
       ]),
