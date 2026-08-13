@@ -8,11 +8,12 @@ import { chooseFalsifications } from './falsify.js';
 import { computeFaculties, headlineCentile, classify, composureAssessed } from './scoring.js';
 import { buildReport } from './report.js';
 import { computeTally } from './tally.js';
+import { markPaper, markedScore } from './marking.js';
 import { applyTrick } from './ui/effects.js';
 import { createSyntheticCursor, runFinale, shouldRunFinale } from './ui/cursor.js';
 import { FINALE_QUESTION } from './tricks.js';
 import {
-  renderLanding, renderQuestion, renderReview, renderCertificate, renderDebrief
+  renderLanding, renderQuestion, renderReview, renderMarking, renderCertificate, renderDebrief
 } from './ui/screens.js';
 
 const root = document.getElementById('app');
@@ -193,6 +194,18 @@ function showReview() {
     transcript, falsifications,
     displayName: displayNameFor(24, typo),
     baseScore: 100,
+    onContinue: () => showMarking()
+  });
+}
+
+// No caching needed, unlike certificateState below: markPaper reads its
+// answers straight out of the question data and consumes no rng, so it is a
+// pure function of the transcript and returns the same marks every time.
+function showMarking() {
+  const rows = markPaper(transcript, falsifications);
+  renderMarking(root, {
+    rows, score: markedScore(rows),
+    displayName: displayNameFor(24, typo),
     onContinue: () => showCertificate()
   });
 }

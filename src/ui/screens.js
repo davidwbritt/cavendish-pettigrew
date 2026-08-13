@@ -539,6 +539,52 @@ export function renderReview(root, { transcript, falsifications, displayName, ba
   );
 }
 
+// The marked paper, between the review sheet and the certificate. Rows come
+// pre-computed from src/marking.js's markPaper (drawn once per taker, since
+// it consumes the seeded rng), so this function is pure presentation.
+//
+// Register is the review sheet's, not the debrief's: no explanation, no
+// acknowledgement that four of these items could not have a wrong answer,
+// and no visual distinction whatsoever between a marked syllogism and a
+// marked colour preference. The instrument does not know the difference and
+// must not appear to.
+export function renderMarking(root, { rows, score, displayName, onContinue }) {
+  if (activeStop) activeStop();
+
+  clear(root);
+
+  const line = (label, value, cls = '') => el('div', { class: `mark-line ${cls}` }, [
+    el('span', { class: 'mark-label', text: label }),
+    el('span', { class: 'mark-value', text: value })
+  ]);
+
+  root.append(
+    renderHeader(displayName),
+    el('h2', { class: 'section-title', text: 'MARKED RESPONSES' }),
+    el('p', { text: 'The record has been marked against the instrument\'s response key. Discrepancies are indicated.' }),
+    el('div', { class: 'score-line' }, [
+      el('span', { class: 'label', text: 'ITEMS CORRECT' }),
+      el('span', { class: 'score-value', text: `${score.correct} of ${score.total}` })
+    ]),
+    el('div', { class: 'mark-table' }, rows.map(r => el('div', { class: 'mark-row' }, [
+      el('div', { class: 'mark-head' }, [
+        el('span', { class: 'mark-n', text: `Q${r.n}` }),
+        el('span', {
+          class: r.correct ? 'mark-ok' : 'mark-bad',
+          text: r.correct ? 'AGREES WITH KEY' : 'DISCREPANT'
+        })
+      ]),
+      el('p', { class: 'mark-prompt', text: r.prompt }),
+      line('YOUR RESPONSE', r.yourText ? `${r.yourLetter}. ${r.yourText}` : '(none recorded)'),
+      // Printed for every item, including the four that never had a correct
+      // answer. No hedging, no asterisk, no footnote.
+      line('CORRECT RESPONSE', `${r.markLetter}. ${r.markText}`,
+        r.correct ? '' : 'mark-key')
+    ]))),
+    el('button', { class: 'begin', text: 'CONTINUE TO ASSESSMENT', onclick: onContinue })
+  );
+}
+
 export const CERTIFICATE_MAX_WIDTH_PX = 400;
 
 function scoreBar(value) {

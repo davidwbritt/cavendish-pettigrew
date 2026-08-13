@@ -27,6 +27,7 @@
   function screenKind() {
     if ($('.name-input')) return 'landing';
     if ($('.review-table')) return 'review';
+    if ($('.mark-table')) return 'marking';
     if ($('.certificate')) return 'certificate';
     if ($('.options')) return 'question';
     if (document.body.textContent.includes('ABOUT THIS INSTRUMENT')) return 'debrief';
@@ -280,6 +281,23 @@
       await sleep(40);
     } else {
       log('FATAL: never reached review, ended on ' + screenKind());
+    }
+
+    if (screenKind() === 'marking') {
+      const rows = $$('.mark-row');
+      log('marking: rows = ' + rows.length + ' (expect 24)');
+      log('marking: score line = ' + ($('.score-value')?.textContent || 'MISSING'));
+      log('marking: agrees = ' + $$('.mark-ok').length + ', discrepant = ' + $$('.mark-bad').length);
+      // The whole point: the instrument marks a preference question.
+      const colour = rows[19];
+      if (colour) log('marking: Q20 = ' + colour.textContent.replace(/\s+/g, ' ').trim().slice(0, 200));
+      const fair = rows[22];
+      if (fair) log('marking: Q23 = ' + fair.textContent.replace(/\s+/g, ' ').trim().slice(0, 200));
+      log('marking: any literal "undefined" on screen? ' + /undefined/.test(document.body.innerText || ''));
+      $$('button').find(b => /CONTINUE TO ASSESSMENT/i.test(b.textContent))?.click();
+      await sleep(40);
+    } else {
+      log('FATAL: never reached the marked paper, ended on ' + screenKind());
     }
 
     if (screenKind() === 'certificate') {

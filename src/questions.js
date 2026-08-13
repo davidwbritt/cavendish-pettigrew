@@ -9,8 +9,14 @@ export const KINDS = ['crt', 'syllogism', 'sequence', 'spatial', 'affect'];
 // the falsification selector (src/falsify.js). Only `prompt` and `options`
 // are content. Every question carries EXACTLY four options — renderQuestion
 // letters them 'ABCD'[i] and doubleMark assumes four.
-const q = (n, phase, kind, correct, nonsense, prompt, options) =>
-  ({ n, phase, kind, nonsense, correct, prompt, options });
+// `key` is the instrument's OWN answer to an item that has no correct one —
+// the affect items. It is data, not a rule: grey is simply the right answer
+// to the colour question, and a taker who happens to prefer grey gets it
+// right. Only the marked paper (src/marking.js) reads it. `correct` stays
+// null on these items, so the validator, the scoring indices and the
+// debrief's honest key are all completely unaffected.
+const q = (n, phase, kind, correct, nonsense, prompt, options, key = null) =>
+  ({ n, phase, kind, nonsense, correct, prompt, options, key });
 
 export const QUESTIONS = [
   // ── Q1–10 · THE DEPOSIT ────────────────────────────────────────────────
@@ -151,7 +157,7 @@ export const QUESTIONS = [
   // exactly the credulity the certificate goes on to trade on.
   q(15, 'descent', 'affect', null, true,
     'Which of these animals do you prefer?',
-    ['The heron', 'The fox', 'The tortoise', 'The wolf']),
+    ['The heron', 'The fox', 'The tortoise', 'The wolf'], 0),
 
   q(16, 'descent', 'spatial', 0, false,
     'A square sheet of paper is folded in half top over bottom, then in half left over right, then in half top over bottom again. A single hole is punched through all layers. How many holes are in the sheet when it is unfolded?',
@@ -189,7 +195,7 @@ export const QUESTIONS = [
   // profession only; never gender.
   q(18, 'descent', 'affect', null, true,
     'Which of these best describes the work you have not yet done?',
-    ['Postponed', 'Delegated', 'Unnecessary', 'Still ahead of me']),
+    ['Postponed', 'Delegated', 'Unnecessary', 'Still ahead of me'], 0),
 
   q(19, 'descent', 'sequence', 2, false,
     'What number continues the series?\n\n3, 4, 6, 9, 13, 18, …',
@@ -201,7 +207,7 @@ export const QUESTIONS = [
   // mechanism sells the apparatus; two reads as a magazine quiz.
   q(20, 'descent', 'affect', null, true,
     'Which of these colours do you prefer?',
-    ['Green', 'Grey', 'Blue', 'Amber']),
+    ['Green', 'Grey', 'Blue', 'Amber'], 1),
 
   // ── Q21–24 · THE FARCE ─────────────────────────────────────────────────
   // Openly ridiculous. Tone, timer and layout rigidly unchanged. No correct
@@ -209,18 +215,18 @@ export const QUESTIONS = [
 
   q(21, 'farce', 'affect', null, true,
     'Bubba\'s sock drawer is to be reclassified. Which classification do you endorse?',
-    ['Provisional', 'Permanent', 'Ceremonial', 'Dormant']),
+    ['Provisional', 'Permanent', 'Ceremonial', 'Dormant'], 2),
 
   q(22, 'farce', 'affect', null, true,
     'How many of the floodazzles in your own household have you accounted for?',
-    ['All of them', 'Most of them', 'Some of them', 'I have not been asked before']),
+    ['All of them', 'Most of them', 'Some of them', 'I have not been asked before'], 0),
 
   // Q23 is the cursor finale: the timer freezes and the drawn cursor drifts
   // toward the lower-left corner while the taker tries to answer. The mask
   // visibly slips here, so the question itself stays perfectly flat.
   q(23, 'farce', 'affect', null, true,
     'Do you feel this assessment has been conducted fairly?',
-    ['Yes', 'No', 'Undecided', 'I would prefer not to say']),
+    ['Yes', 'No', 'Undecided', 'I would prefer not to say'], 0),
 
   // Short and almost gentle — and quietly the most useful item in the piece,
   // since it asks the taker to pre-commit to accepting the result they are
@@ -232,7 +238,7 @@ export const QUESTIONS = [
       'I was not at my best today',
       'The result is probably accurate',
       'I would need to see the working'
-    ])
+    ], 2)
 ];
 
 export function questionByNumber(n) {
@@ -302,6 +308,16 @@ export function validateQuestions(qs) {
     }
     if (item.n >= 21 && item.correct !== null) {
       errors.push(`${label}: farce questions must have no correct answer`);
+    }
+    // Every item without a correct answer still needs one for the marked
+    // paper to assert (see `key` above). A missing key would leave the
+    // marked paper with nothing to print on that row.
+    if (item.correct === null) {
+      if (!Number.isInteger(item.key) || item.key < 0 || item.key > 3) {
+        errors.push(`${label}: unscorable item needs a key index 0-3`);
+      }
+    } else if (item.key !== null) {
+      errors.push(`${label}: scorable item must not carry a key`);
     }
     if (RECOVERY_QUESTIONS.includes(item.n)) {
       if (item.nonsense) errors.push(`${label}: recovery must not be nonsense`);

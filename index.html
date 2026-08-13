@@ -127,6 +127,34 @@ body {
 /* BEGIN on its own line, centred across the content column. */
 .begin-row { text-align: center; margin-top: 2.75rem; }
 
+/* The marked paper. Styled as form furniture, NOT as feedback — same rules,
+   same muted labels, same absence of colour as the review sheet it follows.
+   A marked colour preference must look exactly like a marked syllogism; any
+   visual hedging would be the document noticing what it is doing. */
+.mark-table { margin-top: 1.5rem; }
+.mark-row { border-top: 1px solid var(--rule); padding: 1rem 0; }
+.mark-head {
+  display: flex; gap: .8rem; align-items: baseline;
+  font-family: var(--mono); font-size: .7rem; letter-spacing: .1em;
+}
+.mark-n { font-weight: 700; }
+.mark-ok { color: var(--blue); }
+.mark-bad { color: var(--ink); opacity: .55; }
+.mark-prompt { margin: .5rem 0 .6rem; overflow-wrap: break-word; }
+.mark-line {
+  display: flex; gap: .8rem; align-items: baseline;
+  font-size: .92rem; margin-bottom: .2rem;
+}
+.mark-label {
+  font-family: var(--mono); font-size: .62rem; letter-spacing: .1em;
+  color: var(--blue); flex: 0 0 9.5rem; text-transform: uppercase;
+}
+.mark-value { overflow-wrap: break-word; }
+/* The instrument's answer, on the items it disagreed with. Ink, never red —
+   the correction red is the review sheet's −2 and stays the loudest thing
+   in the document. This is the form stating a fact, not shouting. */
+.mark-key .mark-value { font-weight: 700; }
+
 /* The debrief's answer key. Plainer than the review sheet on purpose: the
    instrument has stopped performing by this point, so this is the one table
    in the document that is simply telling the truth. */
