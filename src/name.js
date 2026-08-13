@@ -12,15 +12,24 @@ const ADJACENT = {
 
 export function introduceTypo(name, rng) {
   const original = name ?? '';
-  // Accept: must start with letter, then can have letters, spaces, hyphens, apostrophes
-  if (original.length < 3 || !/^[A-Za-z][A-Za-z' -]*$/.test(original)) {
+  // Accept: must start with a letter (any Unicode letter — accented Latin,
+  // Cyrillic, etc., not just A-Z), then can have letters, spaces, hyphens,
+  // apostrophes. Widened from /^[A-Za-z][A-Za-z' -]*$/, which silently
+  // returned kind 'none' (no typo at all) for JOSÉ, ZOË, MÜLLER, RENÉE,
+  // BJÖRN and every other accented name — and the debrief page then claims
+  // unconditionally that the name WAS misspelled, a checkable lie for
+  // exactly those takers. \p{L} covers any script; ADJACENT (below) has no
+  // entries for non-ASCII letters, so 'adjacent' safely declines them
+  // (apply() returns null, see below) and the retry loop falls through to
+  // transpose/double/drop, which are script-agnostic.
+  if (original.length < 3 || !/^\p{L}[\p{L}' -]*$/u.test(original)) {
     return { original, display: original, kind: 'none' };
   }
 
-  // Find all positions that contain letters
+  // Find all positions that contain letters (any Unicode letter — see above).
   const letterPositions = [];
   for (let i = 0; i < original.length; i++) {
-    if (/[A-Za-z]/.test(original[i])) {
+    if (/\p{L}/u.test(original[i])) {
       letterPositions.push(i);
     }
   }
@@ -96,7 +105,7 @@ function apply(kind, name, rng, letterPositions) {
     // Check if dropping would leave two separators adjacent
     const beforeChar = i > 0 ? chars[i - 1] : '';
     const afterChar = i < chars.length - 1 ? chars[i + 1] : '';
-    if (beforeChar && afterChar && !/[A-Za-z]/.test(beforeChar) && !/[A-Za-z]/.test(afterChar)) {
+    if (beforeChar && afterChar && !/\p{L}/u.test(beforeChar) && !/\p{L}/u.test(afterChar)) {
       return null;
     }
 

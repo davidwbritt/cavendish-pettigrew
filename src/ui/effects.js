@@ -65,7 +65,7 @@ export function effectiveTrick(name, isTouch) {
   return isTouch ? TOUCH_SUBSTITUTIONS[name] : name;
 }
 
-export function applyTrick(name, { optionElements, onChoose, rng, isTouch = false, setInterceptor }) {
+export function applyTrick(name, { optionElements, rng, isTouch = false, setInterceptor }) {
   const trick = effectiveTrick(name, isTouch);
   const cleanups = [];
   const timers = new Set();

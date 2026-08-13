@@ -431,19 +431,64 @@ export function renderCertificate(root, { report, faculties, centile, onDebrief 
 // certificate itself, where a donation ask would puncture the tone (see
 // Task 15's binding constraints and test/integration.test.js's
 // self-containment check, which exempts exactly this one URL).
-export function renderDebrief(root) {
+//
+// `typoApplied` (default false) gates the closing paragraph's misspelling
+// clause: the debrief used to state unconditionally that "your name was
+// misspelled from question eleven onward", but introduceTypo can leave a
+// name uncorrupted (kind 'none' — too short to corrupt safely, or, before
+// the Unicode widening above, an accented name the old guard rejected
+// outright). Stating the claim to a taker for whom it never happened is a
+// checkable lie on the closing paragraph of a piece about deception, so the
+// caller (main.js) passes typo.kind !== 'none' and the sentence is dropped
+// entirely rather than printed false. The rest of the wording is unchanged
+// either way.
+//
+// `onBack`, when supplied, renders a quiet "Return to certificate" link
+// (same register as the existing debrief link — no button styling, no new
+// colour) that re-renders the certificate the taker already saw, since this
+// page used to be a one-way door: the only prior route forward was
+// clear(root), so Back did nothing and returning meant retaking all 24
+// questions. The caller is expected to re-render from an ALREADY-COMPUTED
+// report/faculties/centile (see main.js) — buildReport draws from the
+// shared seeded rng, so recomputing it here would draw a second, different
+// set of statements and the taker would not recognise their own report.
+// Pure and DOM-free so the "the misspelling clause only appears when a typo
+// was actually applied" guarantee can be unit-tested directly (see
+// reviewRows/applyAmendment/certificateIndexRows above for the same
+// extraction pattern; no jsdom in this project).
+const DEBRIEF_CLOSING_BASE =
+  'The timer always showed forty-five seconds. It did not always give you forty-five seconds. Some of your clicks were interfered with. Three answers on the review sheet were changed before you saw them';
+
+export function debriefClosingText(typoApplied) {
+  return typoApplied
+    ? `${DEBRIEF_CLOSING_BASE}, and your name was misspelled from question eleven onward.`
+    : `${DEBRIEF_CLOSING_BASE}.`;
+}
+
+export function renderDebrief(root, { typoApplied = false, onBack } = {}) {
   // Same leaked-rAF-loop guard every other screen opens with (see the
   // module-level activeStop comment above).
   if (activeStop) activeStop();
 
   clear(root);
+  const closing = debriefClosingText(typoApplied);
+
+  const links = [
+    el('a', { class: 'debrief-link', href: 'https://ko-fi.com/clevermonkey', text: 'ko-fi.com/clevermonkey' })
+  ];
+  if (onBack) {
+    links.unshift(
+      el('a', { class: 'debrief-link', href: '#certificate', text: 'Return to certificate', onclick: onBack })
+    );
+  }
+
   root.append(
     el('h2', { class: 'section-title', text: 'ABOUT THIS INSTRUMENT' }),
     el('p', { text: 'The Cavendish–Pettigrew Reflective Aptitude Inventory does not measure anything. It is a demonstration of two well-documented effects.' }),
     el('p', { text: 'The first is cognitive reflection: some questions have an intuitive answer that arrives quickly and is confidently wrong. The opening items were real, and if you got some of them wrong, you got them wrong the way most people do.' }),
     el('p', { text: 'The second is the Barnum, or Forer, effect: people rate vague, universally true descriptions as highly accurate personal assessments. Every statement in your report was drawn from a fixed pool. Somebody else received most of the same sentences.' }),
-    el('p', { text: 'The timer always showed forty-five seconds. It did not always give you forty-five seconds. Some of your clicks were interfered with. Three answers on the review sheet were changed before you saw them, and your name was misspelled from question eleven onward.' }),
+    el('p', { text: closing }),
     el('p', { text: 'None of it was about you. Thank you for sitting it.' }),
-    el('a', { class: 'debrief-link', href: 'https://ko-fi.com/clevermonkey', text: 'ko-fi.com/clevermonkey' })
+    ...links
   );
 }

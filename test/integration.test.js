@@ -174,6 +174,73 @@ test('a run where every question times out yields 24 entries, all with integer c
     'documented side effect: forced integer choices read as full engagement — see report, not a bug');
 });
 
+// Fix 1 (final whole-branch review, CRITICAL): the test immediately above
+// proves premiseTolerance is now structurally pinned to 100 in the app's
+// real flow (every question always ends up with an integer choice, whether
+// clicked or forced by expiry) — and semanticSatiation was ALWAYS a
+// constant, being purely a function of the fixed question set. Being a
+// permanent joint-maximum early in FACULTIES order, premiseTolerance won
+// classify()'s stable descending sort every time, pinning the certificate's
+// headline adjective to ACCOMMODATING for every taker (measured 3000/3000
+// in the review that found this). classify() now excludes both structurally
+// -constant faculties from headline candidacy (HEADLINE_INELIGIBLE), while
+// leaving computeFaculties() itself untouched and leaving both faculties'
+// real scores in the certificate's index table. This sweeps varied seeded
+// runs — varied timings, correctness, some timeouts, composure assessed
+// only half the time — and asserts the headline adjective is not constant
+// and neither excluded faculty's word ever appears in it.
+test('headline adjective is not a structural constant across 1000+ varied seeded runs', () => {
+  const RUNS = 1200;
+  const adjectiveCounts = {};
+  for (let s = 0; s < RUNS; s++) {
+    const rng = mulberry32(s);
+    const schedule = scheduleTricks(rng);
+    const t = createTranscript();
+    for (const q of QUESTIONS) {
+      const timedOut = (s + q.n * 3) % 11 === 0; // some questions time out
+      const answeredRight = (s * 5 + q.n * 13) % 4 !== 0; // varied correctness
+      let choice;
+      if (timedOut) {
+        choice = pick(rng, [0, 1, 2, 3]); // instrument answers for them — still an integer
+      } else if (q.correct !== null) {
+        choice = answeredRight ? q.correct : (q.correct + 1) % 4;
+      } else {
+        choice = pick(rng, [0, 1, 2, 3]);
+      }
+      const realElapsedMs = 1500 + ((s * 37 + q.n * 91) % 43000); // varied timings
+      recordAnswer(t, {
+        n: q.n, choice, realElapsedMs, displayedElapsedMs: 12000,
+        changes: (s + q.n) % 5 === 0 ? 1 : 0, trick: schedule.get(q.n) ?? null, timedOut
+      });
+    }
+    // Composure assessed (finale ran) for roughly half of runs.
+    if (s % 2 === 0) {
+      t.telemetry.composureAssessed = true;
+      t.telemetry.freezePointerDistance = (s * 53) % 8000;
+    }
+    const falsifications = chooseFalsifications(t, rng);
+    const faculties = computeFaculties(t, falsifications);
+    const assessed = key => key !== 'composure' || composureAssessed(t);
+    const label = classify(faculties, assessed);
+
+    assert.match(label, /^PROFILE 4-B — [A-Z]+ [A-Z]+$/, `seed ${s}: malformed headline "${label}"`);
+    assert.ok(!label.includes('undefined'), `seed ${s}: "undefined" leaked into headline: "${label}"`);
+    assert.ok(!label.includes('ACCOMMODATING'),
+      `seed ${s}: structurally-constant premiseTolerance leaked ACCOMMODATING into headline: "${label}"`);
+    assert.ok(!label.includes('SATIATED'),
+      `seed ${s}: structurally-constant semanticSatiation leaked SATIATED into headline: "${label}"`);
+
+    const adjective = label.split(' ')[3];
+    adjectiveCounts[adjective] = (adjectiveCounts[adjective] || 0) + 1;
+  }
+
+  const distinctAdjectives = Object.keys(adjectiveCounts).length;
+  assert.ok(distinctAdjectives > 1,
+    `headline adjective was constant across ${RUNS} runs: ${JSON.stringify(adjectiveCounts)}`);
+  // Surfaced for the final-fix report; not a hard assertion on exact shape.
+  console.log(`Fix 1 adjective distribution over ${RUNS} runs:`, adjectiveCounts);
+});
+
 // The `timedOut` flag must distinguish the two commit paths precisely: true
 // only for a forced (expired) answer, false for a real click-committed one.
 // Mirrors main.js's two commit() call shapes exactly — default timedOut for

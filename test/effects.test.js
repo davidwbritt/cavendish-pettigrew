@@ -40,7 +40,7 @@ test('deadClick interceptor swallows at most 2 clicks, then passes every index t
   const setInterceptor = fn => { interceptor = fn; };
   const rng = () => 0; // always beats the 0.8 threshold while under the cap
   applyTrick('deadClick', {
-    optionElements: [0, 1, 2, 3], onChoose: () => {}, rng, isTouch: false, setInterceptor
+    optionElements: [0, 1, 2, 3], rng, isTouch: false, setInterceptor
   });
   assert.equal(interceptor(0), null, 'first click is swallowed');
   assert.equal(interceptor(1), null, 'second click is swallowed');
@@ -52,7 +52,7 @@ test('ghostSelection interceptor always returns the neighbouring index, wrapping
   let interceptor;
   const setInterceptor = fn => { interceptor = fn; };
   applyTrick('ghostSelection', {
-    optionElements: [0, 1, 2, 3], onChoose: () => {}, rng: () => 0, isTouch: false, setInterceptor
+    optionElements: [0, 1, 2, 3], rng: () => 0, isTouch: false, setInterceptor
   });
   assert.equal(interceptor(0), 1);
   assert.equal(interceptor(1), 2);
@@ -63,7 +63,7 @@ test('detach() clears the interceptor', () => {
   let interceptor = 'unset';
   const setInterceptor = fn => { interceptor = fn; };
   const detach = applyTrick('deadClick', {
-    optionElements: [0, 1, 2, 3], onChoose: () => {}, rng: () => 0, isTouch: false, setInterceptor
+    optionElements: [0, 1, 2, 3], rng: () => 0, isTouch: false, setInterceptor
   });
   assert.equal(typeof interceptor, 'function');
   detach();
@@ -72,11 +72,11 @@ test('detach() clears the interceptor', () => {
 
 test('deadClick and ghostSelection degrade to no-ops when setInterceptor is not supplied', () => {
   assert.doesNotThrow(() => {
-    const detach = applyTrick('deadClick', { optionElements: [0, 1, 2, 3], onChoose: () => {}, rng: () => 0, isTouch: false });
+    const detach = applyTrick('deadClick', { optionElements: [0, 1, 2, 3], rng: () => 0, isTouch: false });
     detach();
   });
   assert.doesNotThrow(() => {
-    const detach = applyTrick('ghostSelection', { optionElements: [0, 1, 2, 3], onChoose: () => {}, rng: () => 0, isTouch: false });
+    const detach = applyTrick('ghostSelection', { optionElements: [0, 1, 2, 3], rng: () => 0, isTouch: false });
     detach();
   });
 });
@@ -106,7 +106,7 @@ test('stickyAnswer interceptor swallows exactly the first click, then passes eve
   let interceptor;
   const setInterceptor = fn => { interceptor = fn; };
   const optionElements = mockOptions(4);
-  const detach = applyTrick('stickyAnswer', { optionElements, onChoose: () => {}, rng: () => 0, isTouch: false, setInterceptor });
+  const detach = applyTrick('stickyAnswer', { optionElements, rng: () => 0, isTouch: false, setInterceptor });
 
   assert.equal(interceptor(1), null, 'first click is swallowed');
   assert.equal(interceptor(1), 1, 'second click on the same option passes through and commits');
@@ -118,7 +118,7 @@ test('doubleMark interceptor swallows exactly the first click, then passes every
   let interceptor;
   const setInterceptor = fn => { interceptor = fn; };
   const optionElements = mockOptions(4);
-  const detach = applyTrick('doubleMark', { optionElements, onChoose: () => {}, rng: () => 0, isTouch: false, setInterceptor });
+  const detach = applyTrick('doubleMark', { optionElements, rng: () => 0, isTouch: false, setInterceptor });
 
   assert.equal(interceptor(0), null, 'first click is swallowed');
   assert.equal(interceptor(0), 0, 'second click on the same option passes through and commits');
@@ -130,7 +130,7 @@ test('stickyAnswer lights only the clicked option on the swallowed click', () =>
   let interceptor;
   const setInterceptor = fn => { interceptor = fn; };
   const optionElements = mockOptions(4);
-  const detach = applyTrick('stickyAnswer', { optionElements, onChoose: () => {}, rng: () => 0, isTouch: false, setInterceptor });
+  const detach = applyTrick('stickyAnswer', { optionElements, rng: () => 0, isTouch: false, setInterceptor });
 
   interceptor(1);
   assert.equal(optionElements[1].getAttribute('aria-pressed'), 'true', 'the clicked option is lit');
@@ -144,7 +144,7 @@ test('doubleMark lights the clicked option and its (i + 2) % length ghost on the
   let interceptor;
   const setInterceptor = fn => { interceptor = fn; };
   const optionElements = mockOptions(4);
-  const detach = applyTrick('doubleMark', { optionElements, onChoose: () => {}, rng: () => 0, isTouch: false, setInterceptor });
+  const detach = applyTrick('doubleMark', { optionElements, rng: () => 0, isTouch: false, setInterceptor });
 
   interceptor(1);
   assert.equal(optionElements[1].getAttribute('aria-pressed'), 'true', 'the clicked option is lit');
@@ -159,7 +159,7 @@ test('detach() reverts a stickyAnswer highlight left over from an unfinished swa
   let interceptor;
   const setInterceptor = fn => { interceptor = fn; };
   const optionElements = mockOptions(4);
-  const detach = applyTrick('stickyAnswer', { optionElements, onChoose: () => {}, rng: () => 0, isTouch: false, setInterceptor });
+  const detach = applyTrick('stickyAnswer', { optionElements, rng: () => 0, isTouch: false, setInterceptor });
 
   interceptor(2); // swallow — never followed by a second click before teardown
   detach();
@@ -171,7 +171,7 @@ test('detach() reverts a doubleMark highlight left over from an unfinished swall
   let interceptor;
   const setInterceptor = fn => { interceptor = fn; };
   const optionElements = mockOptions(4);
-  const detach = applyTrick('doubleMark', { optionElements, onChoose: () => {}, rng: () => 0, isTouch: false, setInterceptor });
+  const detach = applyTrick('doubleMark', { optionElements, rng: () => 0, isTouch: false, setInterceptor });
 
   interceptor(1); // swallow — never followed by a second click before teardown
   detach();
@@ -183,7 +183,7 @@ test('stickyAnswer never re-clears a node once the real second click has claimed
   let interceptor;
   const setInterceptor = fn => { interceptor = fn; };
   const optionElements = mockOptions(4);
-  const detach = applyTrick('stickyAnswer', { optionElements, onChoose: () => {}, rng: () => 0, isTouch: false, setInterceptor });
+  const detach = applyTrick('stickyAnswer', { optionElements, rng: () => 0, isTouch: false, setInterceptor });
 
   interceptor(2);                                    // first click: swallowed, option 2 lit
   interceptor(2);                                     // second click: passes through, commits for real
@@ -197,7 +197,7 @@ test('doubleMark never re-clears the real node once the real second click has cl
   let interceptor;
   const setInterceptor = fn => { interceptor = fn; };
   const optionElements = mockOptions(4);
-  const detach = applyTrick('doubleMark', { optionElements, onChoose: () => {}, rng: () => 0, isTouch: false, setInterceptor });
+  const detach = applyTrick('doubleMark', { optionElements, rng: () => 0, isTouch: false, setInterceptor });
 
   interceptor(0);                                    // first click: swallowed, options 0 and 2 lit
   interceptor(0);                                     // second click: passes through, commits for real

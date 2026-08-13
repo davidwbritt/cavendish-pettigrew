@@ -61,7 +61,15 @@ export function computeFaculties(t, falsifications = []) {
   });
   const setShiftingCost = clamp(drops.length ? (drops.reduce((a, b) => a + b, 0) / drops.length) * 100 : 0);
 
-  // Mid-test changes plus post-hoc amendments. Real, and largely our doing.
+  // Post-hoc amendments are what actually move this index today: the
+  // outcome gate (createOutcomeGate in src/ui/screens.js) guarantees
+  // recordAnswer is called exactly once per question, so transcript.js's
+  // change-tracking branch (entry.changes) is unreachable in the current
+  // app and always sums to 0 — only amendmentCount(t) contributes. The
+  // `changes` term is retained, not dead weight to be deleted: it's the
+  // hook for a possible future re-answer affordance (e.g. letting a taker
+  // revise an answer before Q11 without going through the review sheet's
+  // amendment flow), at which point this index would start reflecting both.
   const changes = t.entries.reduce((s, e) => s + e.changes, 0);
   const responseConsistency = clamp(100 - (changes * 4) - (amendmentCount(t) * 9));
 
@@ -110,17 +118,29 @@ const NOUNS = {
   semanticSatiation: 'PROCESSOR'
 };
 
+// premiseTolerance and semanticSatiation are structurally constant: every
+// run now lands premiseTolerance on a hard 100 (see the fix-round comment
+// at premiseTolerance's definition above — expiry commits an INTEGER choice,
+// so Number.isInteger(choice) is true for every question in every run) and
+// semanticSatiation is derived purely from the fixed question set, never
+// the taker (see its "nothing to do with the taker whatsoever" comment).
+// Both remain real, rankable numbers in the certificate's index table — this
+// set ONLY removes them from HEADLINE candidacy, where a permanent joint-
+// maximum/minimum would otherwise win classify()'s stable sort every time
+// and make the headline adjective/noun a constant.
+const HEADLINE_INELIGIBLE = new Set(['premiseTolerance', 'semanticSatiation']);
+
 // `assessed`, when supplied, restricts which faculties may supply the
 // headline's adjective/noun — a predicate `key => boolean`, a Set of keys,
-// or an array of keys. Omitting it entirely preserves today's behaviour
-// exactly (every existing Task 8 test calls classify with one argument and
-// must keep passing unmodified). This exists so an unassessed faculty (e.g.
+// or an array of keys. Omitting it entirely preserves today's behaviour for
+// every OTHER exclusion (every existing Task 8 test calls classify with one
+// argument and must keep passing unmodified) — HEADLINE_INELIGIBLE above
+// always applies underneath it regardless, composed here in this single
+// place so the structural exclusion and any caller-supplied exclusion (e.g.
 // COMPOSURE when the Q23 finale never ran — see composureAssessed() above)
-// can never supply the headline, even though it still has a real, rankable
-// number from computeFaculties(). The certificate's interpretation table
-// already suppresses that number with a clinical note; without this, the
-// SAME fake-perfect-100 could still resurface as "COMPOSED" in the most
-// prominent text on the page.
+// can never drift apart. An unassessed/structurally-constant faculty can
+// still have a real, rankable number from computeFaculties() shown in the
+// certificate's index table; this only keeps it out of the headline text.
 export function classify(faculties, assessed) {
   const isAssessed = key => {
     if (assessed === undefined) return true;
@@ -129,12 +149,14 @@ export function classify(faculties, assessed) {
     if (Array.isArray(assessed)) return assessed.includes(key);
     return true;
   };
+  const headlineEligible = key => !HEADLINE_INELIGIBLE.has(key) && isAssessed(key);
 
-  let rankable = FACULTIES.filter(f => isAssessed(f.key));
+  let rankable = FACULTIES.filter(f => headlineEligible(f.key));
   // Ranking needs at least two distinct faculties to name both an adjective
-  // and a noun; if the filter leaves fewer, fall back to the full set rather
-  // than risk `undefined` in the headline.
-  if (rankable.length < 2) rankable = FACULTIES;
+  // and a noun; if the filter leaves fewer, fall back to every faculty
+  // EXCEPT the structurally-constant ones rather than risk `undefined` in
+  // the headline — the structural exclusion is never relaxed, even here.
+  if (rankable.length < 2) rankable = FACULTIES.filter(f => !HEADLINE_INELIGIBLE.has(f.key));
 
   const ranked = [...rankable].sort((a, b) => faculties[b.key] - faculties[a.key]);
   const highest = ranked[0].key;

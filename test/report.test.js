@@ -1,10 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 import { mulberry32 } from '../src/rng.js';
 import { BARNUM, INSINUATION_TIERS } from '../src/statements.js';
 import { drawStatements, buildReport, ordinal } from '../src/report.js';
 import { FACULTIES } from '../src/scoring.js';
 import { CERTIFICATE_MAX_WIDTH_PX, certificateIndexRows } from '../src/ui/screens.js';
+
+const ROOT = dirname(dirname(new URL(import.meta.url).pathname));
 
 const faculties = Object.fromEntries(FACULTIES.map((f, i) => [f.key, 40 + i * 8]));
 const build = seed => buildReport({
@@ -183,6 +187,28 @@ test('suppressed composure still yields exactly one interpretation paragraph per
 test('the certificate is composed for a portrait phone screenshot', () => {
   assert.ok(CERTIFICATE_MAX_WIDTH_PX <= 420,
     'certificate must fit a portrait phone without horizontal cropping');
+});
+
+// Fix 3 (final whole-branch review, IMPORTANT): CERTIFICATE_MAX_WIDTH_PX was
+// referenced only by its own definition and the test above — the width that
+// actually renders comes from an entirely unrelated CSS literal,
+// `.certificate { max-width: 400px }`, in index.html. Nothing tied the two
+// together: index.html's rule could be changed to 900px (as verified while
+// fixing this — see the final-fix report) and every existing test, incl.
+// the one above, kept passing. This test makes the guard real by reading
+// the actual CSS the certificate renders with and asserting it matches the
+// JS constant exactly, so the two cannot drift apart silently again.
+test('index.html\'s .certificate max-width CSS matches CERTIFICATE_MAX_WIDTH_PX exactly', async () => {
+  const html = await readFile(resolve(ROOT, 'index.html'), 'utf8');
+  const ruleMatch = html.match(/\.certificate\s*\{([^}]*)\}/);
+  assert.ok(ruleMatch, 'could not find a .certificate {...} rule in index.html');
+  const widthMatch = ruleMatch[1].match(/max-width:\s*(\d+)px/);
+  assert.ok(widthMatch, 'could not find max-width:<N>px inside the .certificate rule');
+  const cssWidthPx = Number(widthMatch[1]);
+  assert.equal(cssWidthPx, CERTIFICATE_MAX_WIDTH_PX,
+    `index.html's .certificate max-width (${cssWidthPx}px) has drifted from ` +
+    `CERTIFICATE_MAX_WIDTH_PX (${CERTIFICATE_MAX_WIDTH_PX}px) — the JS constant guards ` +
+    `nothing if these two are allowed to disagree`);
 });
 
 test('a suppressed composure produces no numeric bar or score in the index table', () => {

@@ -85,7 +85,13 @@ function nextQuestion() {
     },
     onExpire: elapsed => {
       // The instrument answers FOR the taker. MUST come from the injected
-      // seeded rng — no Math.random() anywhere in this project.
+      // seeded rng — every draw in this pipeline, from here on, is seeded
+      // and reproducible. The ONE sanctioned Math.random() call in this
+      // project is line 17 above, seeding this very rng's initial state; it
+      // is a single entropy source consumed once at startup, not used for
+      // any decision itself, so the pipeline it feeds is still fully seeded
+      // and deterministic from that point on (see test/rng.test.js's grep
+      // guard, which asserts this is the only occurrence in src/).
       const choice = pick(rng, [0, 1, 2, 3]);
       commit(choice, elapsed, screen.driver, true);
       transcript.telemetry.forcedAnswers++;
@@ -98,17 +104,20 @@ function nextQuestion() {
 
   const trick = schedule.get(question.n);
   if (trick) {
+    // No onChoose is passed here (fix 6, final whole-branch review, MINOR):
+    // no trick has called it since the swallow-then-reveal redesign (every
+    // trick now commits via the real click reaching screens.js's own
+    // onChoose above, through setInterceptor). A live-but-unused closure
+    // here was worse than dead code — it called commit() + pauseThenAdvance()
+    // WITHOUT going through the outcome gate (createOutcomeGate in
+    // screens.js), so a future trick wiring itself to it would double-commit
+    // and double-advance. src/ui/effects.js's applyTrick no longer accepts it.
     detach = applyTrick(trick, {
       optionElements: screen.optionElements,
       // Tricks that alter or swallow a click MUST go through setInterceptor —
       // screens.js registers the real onclick first, so a later-attached
       // listener can never pre-empt it. See Task 11 findings.
       setInterceptor: screen.setInterceptor,
-      onChoose: choice => {
-        commit(choice, screen.driver.elapsedMs(), screen.driver);
-        teardownTrick(detach, finale);
-        screen.pauseThenAdvance(goNext);
-      },
       rng,
       isTouch
     });
@@ -148,6 +157,16 @@ function showReview() {
   });
 }
 
+// Computed once per taker and cached, NOT recomputed on every visit to the
+// certificate screen. buildReport draws its Barnum statements from the same
+// shared seeded rng that everything else in the pipeline consumes from —
+// calling it a second time (e.g. when the taker bounces back from the
+// debrief page) would draw a second, different sequence of statements and
+// silently rewrite the certificate the taker already read. See
+// renderCertificateScreen/showDebrief below, the debrief's "Return to
+// certificate" link.
+let certificateState = null;
+
 function showCertificate() {
   const faculties = computeFaculties(transcript, falsifications);
   const centile = headlineCentile(rng);
@@ -169,9 +188,29 @@ function showCertificate() {
   // for it (only the per-faculty index table and the headline centile), so
   // recomputing it here would be a discarded duplicate — removed rather
   // than kept as dead arithmetic (fix round 1, Task 15 review, Finding 4).
+  certificateState = { report, faculties, centile };
+  renderCertificateScreen();
+}
+
+// The certificate <-> debrief round trip. Both renderCertificate and
+// renderDebrief open with the same module-level activeStop guard every
+// other screen uses (see screens.js), so bouncing between them repeatedly
+// leaks no rAF loop or pending timer — neither screen starts one. Each call
+// re-renders from the SAME cached certificateState (see above), so the
+// certificate is byte-identical no matter how many times the taker goes
+// back and forth.
+function renderCertificateScreen() {
+  const { report, faculties, centile } = certificateState;
   renderCertificate(root, {
     report, faculties, centile,
-    onDebrief: e => { e.preventDefault(); renderDebrief(root); }
+    onDebrief: e => { e.preventDefault(); showDebrief(); }
+  });
+}
+
+function showDebrief() {
+  renderDebrief(root, {
+    typoApplied: typo.kind !== 'none',
+    onBack: e => { e.preventDefault(); renderCertificateScreen(); }
   });
 }
 

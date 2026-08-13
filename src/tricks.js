@@ -35,8 +35,13 @@ export function scheduleTricks(rng) {
 }
 
 function pickNonAdjacent(candidates, count, rng) {
-  // Randomised greedy with restart. The eligible set admits at most 6
-  // non-adjacent slots, so count=5 always succeeds within a few attempts.
+  // Randomised greedy with restart. Since GENTLE_CLOSER (Q24) was excluded
+  // from eligibleQuestions(), the eligible set's true non-adjacent maximum
+  // is exactly 5 — there are only 8 valid 5-element slot-sets, so count=5 is
+  // a perfect packing with zero slack, not a comfortable margin. Observed
+  // attempts went from always succeeding on attempt 1 (when 6 was the
+  // ceiling) to needing up to 8 of the 200 budgeted retries (verified over
+  // 3000 seeds — see the fix round 1 report for Task 5).
   for (let attempt = 0; attempt < 200; attempt++) {
     const chosen = [];
     for (const n of shuffle(rng, candidates)) {

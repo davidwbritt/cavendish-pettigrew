@@ -22,6 +22,19 @@ console. Use `npm run dev` (a zero-dependency static file server, see
 everything into a single non-module `<script>` and has no such restriction.
 Ship `dist/index.html`.
 
+## Deploying
+
+`dist/` is gitignored and there is no CI/Pages workflow — nothing is
+deployable until you build and publish by hand:
+
+    npm run build
+
+Then publish the single built file, `dist/index.html`, to a `gh-pages`
+branch (an orphan branch containing only that file — not the source tree),
+and set the repository's GitHub Pages source to serve from `gh-pages` /
+root. Do not commit `dist/` to `develop`/`main` and do not add a CI
+workflow to automate this — both are intentionally out of scope for now.
+
 ## Spec and plans
 
 - `docs/superpowers/specs/2026-08-12-cavendish-pettigrew-design.md`

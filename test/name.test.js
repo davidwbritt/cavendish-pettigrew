@@ -40,10 +40,108 @@ test('names shorter than 3 characters are left alone', () => {
   }
 });
 
-test('non-Latin names are left alone rather than mangled', () => {
-  const r = introduceTypo('ХОЛОД', mulberry32(1));
-  assert.equal(r.display, 'ХОЛОД');
-  assert.equal(r.kind, 'none');
+// Fix 2 (final whole-branch review, IMPORTANT): the guard used to be
+// /^[A-Za-z][A-Za-z' -]*$/, which rejected ANY non-ASCII letter outright —
+// including Cyrillic, so this test used to assert Cyrillic names were "left
+// alone". That was the same bug the accented-Latin case has (JOSÉ, ZOË,
+// etc.): the guard now accepts any Unicode letter (\p{L}), so a name like
+// this DOES get a typo, for the same reason an accented Latin name must —
+// see the tests below. "Left alone" is now reserved for genuinely
+// unsupported input (digits/symbols, or names too short to corrupt safely).
+test('a name using a non-Latin script also gets a typo introduced (Unicode guard)', () => {
+  for (const rng of seeds()) {
+    const r = introduceTypo('ХОЛОД', rng);
+    assert.notEqual(r.kind, 'none', 'Unicode letters must not be silently rejected');
+    assert.equal(r.display[0], 'Х', 'First letter preserved');
+  }
+});
+
+test('a name containing digits or symbols is left alone rather than mangled', () => {
+  for (const name of ['DA1ID', 'ANNA!', '2PAC', 'NAME@EXAMPLE']) {
+    const r = introduceTypo(name, mulberry32(1));
+    assert.equal(r.display, name);
+    assert.equal(r.kind, 'none');
+  }
+});
+
+// Fix 2 (final whole-branch review, IMPORTANT): src/name.js's guard was
+// /^[A-Za-z][A-Za-z' -]*$/, so accented names (JOSÉ, ZOË, MÜLLER, RENÉE,
+// BJÖRN) all returned kind 'none' — no typo at all. The debrief page then
+// states unconditionally that "your name was misspelled from question
+// eleven onward", which was false for exactly those takers: a checkable lie
+// on the closing paragraph of a piece about deception. The guard is now
+// /^\p{L}[\p{L}' -]*$/u.
+const ACCENTED_NAMES = ['JOSÉ', 'ZOË', 'MÜLLER', 'RENÉE', 'BJÖRN', 'ANNE-MARIE', "O'BRIEN", 'DAVID BRITT'];
+
+test('accented and diacritic names always receive a typo (Unicode guard)', () => {
+  for (const name of ACCENTED_NAMES) {
+    for (const rng of seeds()) {
+      const r = introduceTypo(name, rng);
+      assert.notEqual(r.kind, 'none', `No typo for "${name}"`);
+    }
+  }
+});
+
+test('the first character is never altered for accented/diacritic names', () => {
+  for (const name of ACCENTED_NAMES) {
+    for (const rng of seeds()) {
+      const r = introduceTypo(name, rng);
+      assert.equal(r.display[0], r.original[0],
+        `First character changed for "${name}": "${r.original}" -> "${r.display}" (kind: ${r.kind})`);
+    }
+  }
+});
+
+test('no digits or new symbols appear in the corruption of accented/diacritic names', () => {
+  // Allow any Unicode letter plus the three permitted separators — nothing
+  // else (no digits, no punctuation the corruption shouldn't introduce).
+  const allowed = /^[\p{L}' -]+$/u;
+  for (const name of ACCENTED_NAMES) {
+    for (const rng of seeds()) {
+      const r = introduceTypo(name, rng);
+      assert.match(r.display, allowed, `implausible corruption "${r.display}" from "${name}"`);
+    }
+  }
+});
+
+test('diacritics and separators are preserved in accented names except where the corruption legitimately acts', () => {
+  for (const name of ACCENTED_NAMES) {
+    for (const rng of seeds()) {
+      const r = introduceTypo(name, rng);
+      if (r.kind === 'none') continue;
+      const origSeps = Array.from(name).map((c, i) => !/\p{L}/u.test(c) ? i : null).filter(i => i !== null);
+      const dispSeps = Array.from(r.display).map((c, i) => !/\p{L}/u.test(c) ? i : null).filter(i => i !== null);
+      // 'adjacent' and 'transpose' never change the length or which indices
+      // are separators; 'double'/'drop' legitimately shift indices by one.
+      if (r.kind === 'adjacent' || r.kind === 'transpose') {
+        assert.deepEqual(origSeps, dispSeps,
+          `Separators/diacritic positions changed in ${name}: ${r.original} -> ${r.display} (kind ${r.kind})`);
+      }
+    }
+  }
+});
+
+test('the ADJACENT map never fires for accented characters — apply(adjacent) safely declines and the retry loop falls through', () => {
+  // Diacritic-safety claim from the fix: ADJACENT has no entries for
+  // non-ASCII letters, so an 'adjacent' corruption can never land ON an
+  // accented character. Verified directly: no display ever differs from its
+  // original ONLY by a changed accented letter via 'adjacent' kind.
+  for (const name of ['MÜLLER', 'RENÉE', 'BJÖRN']) {
+    for (const rng of seeds()) {
+      const r = introduceTypo(name, rng);
+      if (r.kind !== 'adjacent') continue;
+      // If 'adjacent' fired at all, the position it changed must be a plain
+      // ASCII letter, not the accented one, for these particular names —
+      // sanity-check by confirming the accented character itself is
+      // unchanged in position.
+      for (let i = 0; i < name.length; i++) {
+        if (/[ÜÉÖ]/.test(name[i])) {
+          assert.equal(r.display[i], name[i],
+            `'adjacent' corrupted an accented character in "${name}": -> "${r.display}"`);
+        }
+      }
+    }
+  }
 });
 
 test('the typo is stable — same input and seed give the same output', () => {
