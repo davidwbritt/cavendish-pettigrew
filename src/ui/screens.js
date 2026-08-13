@@ -72,7 +72,7 @@ export const SELECTION_PAUSE_MS = 450;
 
 // How long the forced-answer notice is held on screen after a timeout —
 // long enough to read one clinical sentence.
-export const FORCED_ANSWER_PAUSE_MS = 1500;
+export const FORCED_ANSWER_PAUSE_MS = 3000;
 
 export const FORCED_ANSWER_TEXT =
   'NO RESPONSE RECORDED. A RESPONSE HAS BEEN SELECTED ON YOUR BEHALF.';
