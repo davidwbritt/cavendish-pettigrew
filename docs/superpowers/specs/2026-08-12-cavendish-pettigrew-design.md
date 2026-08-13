@@ -75,6 +75,18 @@ Composition: 3 cognitive-reflection items · 3 formal syllogisms in real English
 > deposit fails. Write new items in the same family — where the intuitive answer
 > is fluent, confident, and wrong.
 
+> **AMENDED 2026-08-13 (owner's call) — partially reversed.** Q1 is now
+> canonical bat-and-ball and Q4 is the widgets problem in the owner's "six
+> wives, six gifts" phrasing. The rule above optimises the wrong screen. A
+> taker who recognises bat-and-ball answers *5 cents*, **knows** they answered
+> 5 cents, and feels clever for having beaten the intuitive 10 — and
+> `chooseFalsifications()` prefers a CRT the taker got *right* above all else
+> (§6, `src/falsify.js`). That certainty is exactly what the review sheet then
+> contradicts, so recognition trades a little deposit for a much deeper cut.
+> **Q7 is kept deliberately novel** (a linguistic "all but 7" trap rather than
+> a famous puzzle) so the deposit still fools a reader who saw through both
+> canonical items. Do not "restore" the original rule without re-reading this.
+
 The taker will get some of these wrong on their own merits. By Q10 they have been
 fooled by themselves, fairly, and have documented reason to distrust their
 instincts rather than the instrument.

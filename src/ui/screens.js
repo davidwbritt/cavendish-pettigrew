@@ -517,9 +517,20 @@ export function renderDebrief(root, { typoApplied = false, onBack } = {}) {
     el('h2', { class: 'section-title', text: 'ABOUT THIS INSTRUMENT' }),
     el('p', { text: 'The Cavendish–Pettigrew Reflective Aptitude Inventory does not measure anything. It is a demonstration of two well-documented effects.' }),
     el('p', { text: 'The first is cognitive reflection: some questions have an intuitive answer that arrives quickly and is confidently wrong. The opening items were real, and if you got some of them wrong, you got them wrong the way most people do.' }),
-    el('p', { text: 'The second is the Barnum, or Forer, effect: people rate vague, universally true descriptions as highly accurate personal assessments. Every statement in your report was drawn from a fixed pool. Somebody else received most of the same sentences.' }),
+    el('p', { text: 'The second is the Barnum, or Forer, effect: people rate vague, universally true descriptions as highly accurate personal assessments. Every statement in your report was drawn from a fixed pool of twenty-four, of which ten were dealt to you at random. The next person to sit this will receive most of the same sentences and will find them just as pointed.' }),
     el('p', { text: closing }),
-    el('p', { text: 'None of it was about you. Thank you for sitting it.' }),
+    // The mercy. The audience for this instrument is the owner's own
+    // professional circle, at a career stage where the material it trades
+    // on — unused capacity, the road not taken, the arithmetic of how long
+    // is left — is not abstract. That precision is what makes the piece
+    // work and what obliges this paragraph. Two rules hold every line here:
+    // punch at the shared condition and never at the individual's failure
+    // ("this is characteristic of the band" is funny; "you settled" is the
+    // same sentence with the subject changed, and is not), and make the
+    // reveal that EVERYONE receives these sentences do the actual work of
+    // converting "that stung" into "it got me the way it gets everyone".
+    el('p', { text: 'If one of those sentences landed harder than the others, that is not something the instrument found out about you. It is the oldest trick in the drawer: write a line that is true of nearly everyone who has worked hard at something for a long time, deliver it flatly enough to sound measured, and let the reader supply the specifics. You supplied the specifics. Everyone does. Knowing how it works does not switch it off — that is rather the point of it.' }),
+    el('p', { text: 'None of it was about you. It was about all of us, which is the only reason it works at all. Thank you for sitting it.' }),
     ...links
   );
 }

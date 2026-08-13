@@ -95,6 +95,16 @@ reader who recognises one answers instantly and correctly, and the deposit fails
 Write new items in the same family: the intuitive answer arrives fast, feels
 obvious, and is wrong.
 
+> **AMENDED 2026-08-13 (owner's call) — partially reversed.** Q1 is canonical
+> bat-and-ball; Q4 is the widgets problem as *"six wives can wrap six gifts in
+> six minutes"* (an inside joke, and period-appropriate phrasing for a 1978
+> booklet). Recognition is a feature on the **review screen**, not a bug:
+> the recogniser answers 5 cents, is certain of it, and `chooseFalsifications()`
+> prefers a correctly-answered CRT above everything else — so that certainty is
+> what gets contradicted. **Q7 stays novel** so the deposit still lands on a
+> reader who saw through both. Constraint (b) below matters *more* under this
+> change, not less.
+
 **(b) Deposit answers must be SHORT, CONCRETE and MEMORABLE.** The review
 screen's entire payload is the taker thinking *"I know I answered five cents."*
 That only works if the answer is the kind of thing a person remembers deciding.
