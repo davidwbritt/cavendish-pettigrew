@@ -967,7 +967,11 @@ export function introduceTypo(name, rng) {
 }
 
 function apply(kind, name, rng) {
-  const i = 1 + Math.floor(rng() * (name.length - 1)); // never the first letter
+  // Index 0 is never altered by ANY kind. Note transpose swaps (i-1, i), so it
+  // needs i >= 2 or it would swap index 0 — the bug this comment once hid.
+  const lo = kind === 'transpose' ? 2 : 1;
+  if (name.length <= lo) return null;
+  const i = lo + Math.floor(rng() * (name.length - lo));
   const chars = [...name];
 
   if (kind === 'adjacent') {
