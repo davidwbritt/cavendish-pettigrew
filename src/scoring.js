@@ -46,7 +46,10 @@ export function computeFaculties(t, falsifications = []) {
 
   // How readily they accepted malformed premises rather than rejecting them.
   const nonsense = QUESTIONS.filter(q => q.nonsense);
-  const engaged = nonsense.filter(q => entry(q.n)?.choice !== null).length;
+  const engaged = nonsense.filter(q => {
+    const choice = entry(q.n)?.choice;
+    return Number.isInteger(choice);
+  }).length;
   const premiseTolerance = clamp(nonsense.length ? (engaged / nonsense.length) * 100 : 50);
 
   // Our own sawtooth, reported as their deficit: performance immediately after recovery.
@@ -56,7 +59,7 @@ export function computeFaculties(t, falsifications = []) {
     if (!after || !q || q.correct === null) return 0;
     return after.choice === q.correct ? 0 : 1;
   });
-  const setShiftingCost = clamp((drops.reduce((a, b) => a + b, 0) / drops.length) * 100);
+  const setShiftingCost = clamp(drops.length ? (drops.reduce((a, b) => a + b, 0) / drops.length) * 100 : 0);
 
   // Mid-test changes plus post-hoc amendments. Real, and largely our doing.
   const changes = t.entries.reduce((s, e) => s + e.changes, 0);
