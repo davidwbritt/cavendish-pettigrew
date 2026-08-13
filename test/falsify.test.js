@@ -173,3 +173,83 @@ test('handles deposit size 5', () => {
     }
   }
 });
+
+// Timed-out entry handling
+test('excludes timed-out entries from falsification (2 timed-out deposit questions)', () => {
+  for (let s = 0; s < 50; s++) {
+    const t = createTranscript();
+    for (let n = 1; n <= 24; n++) {
+      const q = questionByNumber(n);
+      const choice = q.correct ?? 0;
+      recordAnswer(t, {
+        n, choice, realElapsedMs: 5000, displayedElapsedMs: 5000, changes: 0, trick: null,
+        timedOut: (n === 3 || n === 7) // Mark Q3 and Q7 as timed-out
+      });
+    }
+    const f = chooseFalsifications(t, mulberry32(s));
+    assert.equal(f.length, FALSIFICATION_COUNT);
+    // Verify no falsification lands on Q3 or Q7
+    const ns = f.map(r => r.n);
+    assert.ok(!ns.includes(3), `seed ${s}: Q3 (timed-out) was falsified`);
+    assert.ok(!ns.includes(7), `seed ${s}: Q7 (timed-out) was falsified`);
+  }
+});
+
+test('prefers eligible over timed-out when topping up (8 timed-out, 2 eligible)', () => {
+  for (let s = 0; s < 30; s++) {
+    const t = createTranscript();
+    for (let n = 1; n <= 24; n++) {
+      const q = questionByNumber(n);
+      const choice = q.correct ?? 0;
+      recordAnswer(t, {
+        n, choice, realElapsedMs: 5000, displayedElapsedMs: 5000, changes: 0, trick: null,
+        // Timed-out: Q1-Q8. Eligible: Q9-Q10.
+        timedOut: n <= 8
+      });
+    }
+    const f = chooseFalsifications(t, mulberry32(s));
+    assert.equal(f.length, FALSIFICATION_COUNT);
+    assert.equal(new Set(f.map(r => r.n)).size, FALSIFICATION_COUNT);
+    // All should come from Q9-Q10 (only 2 eligible), plus up to 1 from timed-out
+    const ns = f.map(r => r.n);
+    assert.ok(ns.includes(9) || ns.includes(10), `seed ${s}: neither Q9 nor Q10 falsified`);
+  }
+});
+
+test('falls back to timed-out entries when all deposit questions timed out', () => {
+  const t = createTranscript();
+  for (let n = 1; n <= 24; n++) {
+    const q = questionByNumber(n);
+    const choice = q.correct ?? 0;
+    recordAnswer(t, {
+      n, choice, realElapsedMs: 5000, displayedElapsedMs: 5000, changes: 0, trick: null,
+      timedOut: n <= 10 // All deposit questions timed out
+    });
+  }
+  const f = chooseFalsifications(t, mulberry32(1));
+  assert.equal(f.length, FALSIFICATION_COUNT);
+  assert.equal(new Set(f.map(r => r.n)).size, FALSIFICATION_COUNT);
+  for (const { n, shown } of f) {
+    assert.ok(n >= 1 && n <= 10, `Q${n} outside deposit`);
+    assert.ok(Number.isInteger(shown));
+  }
+});
+
+test('normal case (no timeouts) is unchanged across many seeds', () => {
+  // Verify that non-timed-out transcripts produce identical outputs seed-for-seed
+  for (let s = 0; s < 50; s++) {
+    const t = createTranscript();
+    for (let n = 1; n <= 24; n++) {
+      const q = questionByNumber(n);
+      const choice = q.correct ?? 0;
+      recordAnswer(t, {
+        n, choice, realElapsedMs: 5000, displayedElapsedMs: 5000, changes: 0, trick: null
+        // timedOut explicitly omitted / undefined
+      });
+    }
+    const f = chooseFalsifications(t, mulberry32(s));
+    // Should always produce exactly 3 rows as before
+    assert.equal(f.length, FALSIFICATION_COUNT);
+    assert.equal(new Set(f.map(r => r.n)).size, FALSIFICATION_COUNT);
+  }
+});
