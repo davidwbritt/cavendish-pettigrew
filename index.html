@@ -78,9 +78,28 @@ body {
   font-family: var(--mono); font-weight: 700; font-size: .78rem;
   letter-spacing: .04em; color: var(--red); margin: 1.4rem 0 0;
 }
+/* The live scoring readout under the options during the post-commit hold
+   (src/tally.js). Understated for the same reason the timer is (spec §4):
+   it has to read as instrumentation the taker happens to be able to see,
+   not as a display built for them. Muted blue is the form-furniture token,
+   so it sits with the field labels and registration marks rather than
+   competing with the question. No animation and no transition — it simply
+   appears, which is what makes it feel logged rather than presented. */
+.tally {
+  font-family: var(--mono); font-size: .68rem; letter-spacing: .02em;
+  line-height: 1.5; color: var(--blue); margin: 1.6rem 0 0;
+  padding-top: .5rem; border-top: 1px solid var(--rule);
+}
+/* Long enough on a narrow screen to need its own scroll rather than
+   forcing the page wider or wrapping mid-figure. */
+.tally-line { white-space: nowrap; overflow-x: auto; }
 .name-input {
   font: inherit; background: transparent; border: 0; border-bottom: 1px solid var(--ink);
   padding: .3rem 0; width: 100%; margin-bottom: 2rem;
+  /* The field is transparent and borderless apart from its baseline rule,
+     so the default caret can be genuinely hard to spot against the paper.
+     Named explicitly so the cursor is unmistakably there on load. */
+  caret-color: var(--ink);
 }
 .begin {
   font-family: var(--mono); font-size: .78rem; letter-spacing: .14em;

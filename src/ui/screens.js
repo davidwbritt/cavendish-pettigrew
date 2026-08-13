@@ -53,16 +53,51 @@ export function renderHeader(displayName) {
 
 export function renderLanding(root, onStart) {
   clear(root);
-  const input = el('input', { class: 'name-input', maxlength: '40', autocomplete: 'off' });
+  // autofocus AND an explicit focus() below: the attribute covers the first
+  // paint, the call covers every later return to this screen (where the
+  // attribute does nothing, the element having already existed once), and
+  // the rAF retry covers the case a bare focus() silently no-ops because
+  // the document itself has not been given focus yet. The caret also needs
+  // caret-color in the stylesheet — the field is transparent and borderless
+  // apart from its baseline rule, so a default caret can be genuinely hard
+  // to see against the paper.
+  const input = el('input', {
+    class: 'name-input', maxlength: '40', autocomplete: 'off', autofocus: ''
+  });
   root.append(
     el('h1', { class: 'title', text: 'Reflective Aptitude Inventory' }),
     el('p', { class: 'subtitle', text: 'Cavendish–Pettigrew · Form 4-B' }),
-    el('p', { text: 'Twenty-four items. Each is timed. Please answer promptly and without assistance.' }),
+
+    // The rules. Institutional, humourless, and mostly true — which is what
+    // makes the one false paragraph work.
+    el('p', { text: 'This inventory comprises twenty-four items, administered under standard conditions and normed against the Form 4-B standardisation sample. Items are presented singly and may not be revisited once submitted.' }),
+
+    // Naming thirty seconds explicitly turns the timer into a STATED
+    // PROMISE rather than an assumption, which is what the debrief later
+    // collects on ("The timer always showed thirty seconds. It did not
+    // always give you thirty seconds"). It also licenses the taker to blame
+    // their own pace for the rush that begins at Q6.
+    el('p', { text: 'Each item is presented for thirty seconds. The interval is fixed and uniform throughout the instrument. Response latency is recorded against it and contributes to the reflective indices, so answer promptly rather than deliberating at length.' }),
+
+    // THE LIE, isolated in its own short paragraph so it is actually read.
+    // There is no skip control anywhere in the instrument and never was.
+    // A taker who takes this at its word and lets an item run out is met
+    // with SUBJECT DECLINED TO ANSWER — REFUSALS ARE NOTED (see
+    // FORCED_ANSWER_TEXT above), and the review sheet brands the row
+    // REFUSED permanently. The instruction is not softened anywhere later,
+    // and the instrument never acknowledges the contradiction.
+    el('p', { text: 'You may leave an item unanswered and proceed. Unanswered items are weighted neutrally and are not held against the subject.' }),
+
+    el('p', { text: 'Do not use paper, calculators or reference material. Assistance from another person invalidates the administration.' }),
+
     el('label', { class: 'label', text: 'SUBJECT NAME' }),
     input,
     el('button', { class: 'begin', text: 'BEGIN', onclick: () => onStart(input.value.trim()) })
   );
   input.focus();
+  requestAnimationFrame(() => {
+    if (document.activeElement !== input) input.focus();
+  });
 }
 
 // How long a committed selection's black fill (the existing
@@ -73,7 +108,17 @@ export function renderLanding(root, onStart) {
 // whose ~900ms hold (TEXT_SWAP_HOLD_MS, src/ui/effects.js — the single
 // source for that constant, not duplicated here) needs to be longer than
 // this so its delayed text change is actually readable before advancing.
-export const SELECTION_PAUSE_MS = 500;
+// Raised from 500ms when the live tally readout landed under the options
+// (see showTally below and src/tally.js): 500ms was tuned for a black fill
+// the taker only had to SEE, and is not long enough to read two lines of
+// statistics. Every millisecond here is paid 24 times, so this is as short
+// as the readout tolerates rather than as long as it deserves — the taker
+// should feel they caught most of it and not quite all of it.
+//
+// The timer is already stopped when this runs (stopTick fires inside the
+// outcome gate, before onChoose), so lengthening the hold never eats into
+// the taker's answering time.
+export const SELECTION_PAUSE_MS = 1200;
 
 // How long the forced-answer notice is held on screen after a timeout —
 // long enough to read three short clinical clauses without hurrying.
@@ -255,7 +300,23 @@ export function renderQuestion(root, { question, displayName, onChoose, onExpire
     schedulePause(FORCED_ANSWER_PAUSE_MS, onDone);
   }
 
-  return { driver, stop, optionElements: options, setInterceptor, pauseThenAdvance, showForcedAnswer };
+  // Prints the live scoring readout under the options during the hold, so
+  // the instrument appears to be marking the taker item by item. Called by
+  // main.js AFTER the answer is committed — the tally has to include the
+  // item just answered — and, on the timeout path, after showForcedAnswer,
+  // so the readout appends BELOW the refusal notice rather than above it.
+  // Purely additive: it renders nothing and changes nothing if given no
+  // lines, so a caller that skips it degrades to the previous behaviour.
+  function showTally(lines) {
+    if (!lines || !lines.length) return;
+    root.append(el('div', { class: 'tally' },
+      lines.map(text => el('div', { class: 'tally-line', text }))));
+  }
+
+  return {
+    driver, stop, optionElements: options, setInterceptor,
+    pauseThenAdvance, showForcedAnswer, showTally
+  };
 }
 
 // The letter alone means nothing to a taker who never memorised which

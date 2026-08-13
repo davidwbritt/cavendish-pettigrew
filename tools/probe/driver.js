@@ -49,6 +49,19 @@
   async function run() {
     if (screenKind() !== 'landing') { log('FATAL: did not start on landing'); return finish(); }
 
+    // The name field must already hold the caret when the page settles —
+    // the taker should not have to find and click it.
+    log('landing: name input focused on load? ' + (document.activeElement === $('.name-input')));
+    log('landing: caret-color = ' + getComputedStyle($('.name-input')).caretColor);
+    {
+      const body = document.body.innerText || '';
+      // The instruction that is not true. There is no skip control anywhere.
+      log('landing: skip instruction present? ' + body.includes('leave an item unanswered and proceed'));
+      log('landing: thirty-second promise present? ' + body.includes('presented for thirty seconds'));
+      log('landing: any skip/pass control rendered? '
+        + $$('button').map(b => b.textContent.trim()).join('|'));
+    }
+
     $('.name-input').value = 'DAVID BRITT';
     log('landing: entered DAVID BRITT');
     $('.begin').click();
@@ -61,6 +74,8 @@
     const lockedOut = [];
     const pauseSeen = new Set();
     const holdEvidence = [];
+    const tallySeen = new Set();
+    const tallyEvidence = [];
     let guard = 0;
 
     while (screenKind() === 'question' && guard++ < 400) {
@@ -97,8 +112,9 @@
       const idx = clicksPerQuestion[n] % opts.length;
       opts[idx].click();
 
-      // A committed selection now holds ~450ms with the option filled black
-      // before advancing. Sample mid-hold to confirm the fill is visible.
+      // A committed selection holds with the option filled black, and the
+      // tally readout printed under it, before advancing. Sample mid-hold to
+      // confirm both are visible.
       await sleep(120);
       if (questionNumber() === n) {
         const pressed = $$('.option[aria-pressed="true"]');
@@ -106,8 +122,26 @@
           pauseSeen.add(n);
           holdEvidence.push(n);
         }
+        const tally = $$('.tally-line').map(e => e.textContent);
+        if (tally.length && !tallySeen.has(n)) {
+          tallySeen.add(n);
+          tallyEvidence.push({ n, lines: tally });
+        }
       }
-      await sleep(700);   // clear the rest of the hold
+
+      // WAIT FOR THE ADVANCE — never assume a duration. This used to sleep a
+      // flat 700ms, tuned to the old 500ms SELECTION_PAUSE_MS. When the hold
+      // grew to 1200ms (and textSwap's to 1700ms) to make the tally readable,
+      // that sleep returned while the screen was still holding, so the probe
+      // fell through and clicked a SECOND time on a question the outcome gate
+      // had already settled. The extra click changed nothing in the app but
+      // moved the probe's own `idx`, so it recorded the wrong answer for
+      // itself and then reported six falsified rows where the app had
+      // correctly written three. A probe bug that reads exactly like an app
+      // bug — the reason this file's own results are never trusted before
+      // being read. Polling for the transition cannot drift with the tuning.
+      let held = 0;
+      while (questionNumber() === n && held < 2600) { await sleep(100); held += 100; }
       // Whatever index we last clicked before leaving is what we believe we answered.
       if (questionNumber() !== n) committed[n] = idx;
 
@@ -133,6 +167,15 @@
     log('questions LOCKED OUT (timer rescued): ' + JSON.stringify(lockedOut));
     log('clicks per question: ' + JSON.stringify(clicksPerQuestion));
     log('questions where the black selection hold was observed mid-pause: ' + JSON.stringify(holdEvidence));
+    log('questions where the tally readout was observed mid-hold: ' + JSON.stringify(tallyEvidence.map(t => t.n)));
+    for (const t of tallyEvidence.slice(0, 3)) {
+      log(`tally Q${t.n}: ` + t.lines.join('  ||  '));
+    }
+    log('tally Q(last): ' + (tallyEvidence.length ? tallyEvidence[tallyEvidence.length - 1].lines.join('  ||  ') : 'NONE SEEN'));
+    {
+      const bad = tallyEvidence.filter(t => t.lines.join(' ').match(/undefined|NaN/));
+      log('tally rows containing undefined/NaN = ' + bad.length + ' (expect 0)');
+    }
     const swallowed = Object.entries(clicksPerQuestion).filter(([, c]) => c > 1);
     log('questions needing >1 click (tricks firing): ' + JSON.stringify(swallowed));
 

@@ -51,8 +51,12 @@ test('timerIsRed is true strictly below RED_THRESHOLD_MS and false at or above i
   assert.equal(timerIsRed(0), true);
 });
 
-test('SELECTION_PAUSE_MS is 500 and TEXT_SWAP_HOLD_MS extends only the textSwap question\'s hold', () => {
-  assert.equal(SELECTION_PAUSE_MS, 500);
+test('SELECTION_PAUSE_MS is 1200 and TEXT_SWAP_HOLD_MS extends only the textSwap question\'s hold', () => {
+  // Raised from 500ms when the live tally readout landed under the options
+  // (src/tally.js): 500ms was enough to SEE a black fill and is not enough
+  // to READ two lines of statistics. The ordering assertion below is the
+  // real invariant and is unchanged.
+  assert.equal(SELECTION_PAUSE_MS, 1200);
   assert.ok(TEXT_SWAP_HOLD_MS > SELECTION_PAUSE_MS, 'the extended hold must actually be longer');
 });
 

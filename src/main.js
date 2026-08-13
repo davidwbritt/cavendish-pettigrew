@@ -7,6 +7,7 @@ import { createTranscript, recordAnswer, amendmentCount } from './transcript.js'
 import { chooseFalsifications } from './falsify.js';
 import { computeFaculties, headlineCentile, classify, composureAssessed } from './scoring.js';
 import { buildReport } from './report.js';
+import { computeTally } from './tally.js';
 import { applyTrick } from './ui/effects.js';
 import { createSyntheticCursor, runFinale, shouldRunFinale } from './ui/cursor.js';
 import { FINALE_QUESTION } from './tricks.js';
@@ -94,6 +95,10 @@ function nextQuestion() {
       // it down — see teardownTrick's comment above for why this can't just
       // be immediate for this one trick.
       detach?.notifyCommit?.(choice);
+      // The live scoring readout, printed under the options for the length
+      // of the hold. Computed AFTER commit so it includes the item just
+      // answered, and derived entirely from the transcript (src/tally.js).
+      screen.showTally(computeTally(transcript.entries, question.n)?.lines);
       if (detach?.holdMs) {
         // Extended hold (textSwap): defer teardown until after the longer
         // pause instead of tearing down immediately.
@@ -126,6 +131,10 @@ function nextQuestion() {
       // Shows the clinical red notice, marks the forced option selected,
       // holds, then advances — see renderQuestion's showForcedAnswer.
       screen.showForcedAnswer(choice, goNext);
+      // After showForcedAnswer, so the readout appends below the refusal
+      // notice. A timed-out entry always reports FLAGGED — the instrument
+      // records the refusal it just invented as a fact about the taker.
+      screen.showTally(computeTally(transcript.entries, question.n)?.lines);
     }
   });
 

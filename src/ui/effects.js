@@ -122,7 +122,12 @@ export const TEXT_SWAP_DELAY_MS = 150;
 // readable before the screen advances. See main.js's onChoose, which reads
 // this off the returned cleanup function's `.holdMs` (set below) to decide
 // how long to hold this particular question.
-export const TEXT_SWAP_HOLD_MS = 900;
+// Raised from 900ms alongside SELECTION_PAUSE_MS's 500 -> 1200 (screens.js).
+// The invariant this constant exists to satisfy is TEXT_SWAP_HOLD_MS >
+// SELECTION_PAUSE_MS — pinned by test/timeout.test.js — so raising the
+// default hold without raising this one would have inverted it and left the
+// swapped text on screen for LESS time than an ordinary answer.
+export const TEXT_SWAP_HOLD_MS = 1700;
 
 export function applyTrick(name, { optionElements, rng, isTouch = false, setInterceptor }) {
   const trick = effectiveTrick(name, isTouch);
