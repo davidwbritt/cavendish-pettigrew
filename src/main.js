@@ -36,7 +36,7 @@ function start(name) {
 
 // Runs the trick's own detach() and the Q23 finale's cancel() SYNCHRONOUSLY
 // — never deferred into or after a pause. A trick's listeners/timers, and
-// the finale's fling loop, must never be able to act against a question
+// the finale's drift loop, must never be able to act against a question
 // that has already been decided (see Task 15's carry-over constraints and
 // the finale-cancel fix in the original wiring). Both onChoose and onExpire
 // below call this at the moment of commit, before scheduling any pause.
@@ -128,8 +128,8 @@ function nextQuestion() {
     const cursor = createSyntheticCursor(document.body);
     // The finale returned by runFinale carries a .cancel() (attached to its
     // Promise) — capture it and call it from teardownTrick() above if the
-    // taker manages a blind click mid-fling, so a Q24 render is never
-    // fought over by a still-flying Q23 cursor. Composure is only ever
+    // taker manages a blind click mid-drift, so a Q24 render is never
+    // fought over by a still-drifting Q23 cursor. Composure is only ever
     // marked assessed inside this same onDistance callback, alongside the
     // distance itself — if the finale is aborted (Esc, any key, or the
     // taker never reaches this callback), composureAssessed correctly

@@ -165,11 +165,17 @@ itch mobile), so these are not optional.
 
 ### Q23 — the finale
 
-Timer freezes, cursor locks, then releases and flings. This one is *not*
-deniable, and that is intentional: it is the mask visibly slipping, immediately
-before a certificate that grades the taker with total seriousness anyway. The
-straight face *after* being caught lying is funnier than the straight face
-before.
+Timer freezes, cursor locks, then releases into a slow drift toward the
+lower-left corner. This one is *not* deniable, and that is intentional: it is
+the mask visibly slipping, immediately before a certificate that grades the
+taker with total seriousness anyway. The straight face *after* being caught
+lying is funnier than the straight face before.
+
+The drift is deliberately unhurried and aimed at a single destination rather
+than any kind of flourish — a spiral or flourish reads as an animation
+somebody authored, while a slow, steady pull toward a corner reads as
+something dragging the taker's mouse. The former is a magic trick; the latter
+is the wrongness the finale is supposed to leave behind.
 
 Freezing the timer during the finale means the trick costs the taker nothing —
 which reads as haunted rather than unfair.
@@ -178,7 +184,7 @@ which reads as haunted rather than unfair.
 unsuitable: browsers overlay a "Press Esc to exit" notification that would
 puncture the effect. Instead: `cursor: none` across the test surface plus a
 synthetic cursor drawn and fully controlled by us — freezable, laggable,
-driftable, flingable — with clicks hit-tested against the *drawn* position rather
+driftable — with clicks hit-tested against the *drawn* position rather
 than the real one. The real pointer continues moving invisibly underneath.
 
 Esc and any keyboard input restore everything instantly. This is both the
