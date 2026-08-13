@@ -70,7 +70,16 @@ export function renderLanding(root, onStart) {
 
     // The rules. Institutional, humourless, and mostly true — which is what
     // makes the one false paragraph work.
-    el('p', { text: 'This inventory comprises twenty-four items, administered under standard conditions and normed against the Form 4-B standardisation sample. Items are presented singly and may not be revisited once submitted.' }),
+    // The promise of a correction pass. TRUE — the review sheet's EDIT
+    // control genuinely works — and load-bearing three times over. It
+    // removes the taker's reason to agonise over any single item, which
+    // keeps them moving at the pace the timer needs. It sets up the filing
+    // fee, which is conspicuously not mentioned here: the −2 lands only
+    // AFTER the first amendment, once the price is unrefusable. And it is
+    // what makes the falsified transcript bite, because the taker arrives
+    // at that screen having been told it is their chance to put the record
+    // right, and finds the record already altered.
+    el('p', { text: 'This inventory comprises twenty-four items, administered under standard conditions and normed against the Form 4-B standardisation sample. Items are presented singly. A full transcript is presented for review before the assessment is finalised, and any answer may be corrected at that stage.' }),
 
     // Naming thirty seconds explicitly turns the timer into a STATED
     // PROMISE rather than an assumption, which is what the debrief later

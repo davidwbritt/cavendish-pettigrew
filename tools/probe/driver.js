@@ -76,6 +76,14 @@
     const holdEvidence = [];
     const tallySeen = new Set();
     const tallyEvidence = [];
+    // Questions on which the refusal notice was observed at any point, by
+    // any polling loop. Shared so no single loop has to be the one looking.
+    const refusalSeen = new Set();
+    const noteRefusal = n => {
+      if (!refusalSeen.has(n) && (document.body.innerText || '').includes('DECLINED TO ANSWER')) {
+        refusalSeen.add(n);
+      }
+    };
     let guard = 0;
 
     while (screenKind() === 'question' && guard++ < 400) {
@@ -141,7 +149,20 @@
       // bug — the reason this file's own results are never trusted before
       // being read. Polling for the transition cannot drift with the tuning.
       let held = 0;
-      while (questionNumber() === n && held < 2600) { await sleep(100); held += 100; }
+      while (questionNumber() === n && held < 2600) {
+        await sleep(100); held += 100;
+        // Watch for the refusal notice HERE too, not only in the lockout
+        // branch below. On a locked-out question every click now burns the
+        // full 2600ms above, so a question whose real duration is short
+        // (Q17 allows 13s) expires INSIDE this loop: the notice appears and
+        // the forced-answer hold elapses before the branch below is ever
+        // reached, whose `questionNumber() === n` guard then fails so its
+        // body never runs and its local `notice` stays false. That printed
+        // a FATAL for a lockout the app had resolved perfectly. Recording
+        // the sighting in shared state is what decouples "did the notice
+        // appear" from "was the probe looking at that instant".
+        noteRefusal(n);
+      }
       // Whatever index we last clicked before leaving is what we believe we answered.
       if (questionNumber() !== n) committed[n] = idx;
 
@@ -149,17 +170,18 @@
       // next click lands) or the LOCKOUT trick, which by design cannot be
       // clicked past at all — only the expiring timer resolves it into a
       // forced answer. Stop clicking and wait it out, as a real taker must.
-      if (questionNumber() === n && clicksPerQuestion[n] > 5) {
-        let waited = 0, notice = false;
+      // Deliberately NOT guarded on still being on the question: the notice
+      // may already have come and gone during the hold above.
+      if (clicksPerQuestion[n] > 5) {
+        let waited = 0;
         while (questionNumber() === n && waited < 70000) {
           await sleep(250); waited += 250;
-          if (!notice && (document.body.innerText || '').includes('DECLINED TO ANSWER')) {
-            notice = true;
-            log(`Q${n}: LOCKOUT — ${clicksPerQuestion[n]} clicks refused, timer rescued it after ~${waited}ms`);
-          }
+          noteRefusal(n);
         }
         lockedOut.push(n);
-        if (!notice) log(`Q${n}: FATAL — refused every click AND never showed the forced-answer notice`);
+        log(refusalSeen.has(n)
+          ? `Q${n}: LOCKOUT — ${clicksPerQuestion[n]} clicks refused, timer rescued it`
+          : `Q${n}: FATAL — refused every click AND never showed the forced-answer notice`);
         continue;
       }
     }

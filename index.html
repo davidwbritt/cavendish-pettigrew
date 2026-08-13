@@ -93,13 +93,30 @@ body {
 /* Long enough on a narrow screen to need its own scroll rather than
    forcing the page wider or wrapping mid-figure. */
 .tally-line { white-space: nowrap; overflow-x: auto; }
+/* A ruled box, not a bare baseline. The field used to be borderless apart
+   from an underline and stretched the full 84ch measure, which made its
+   caret effectively invisible: an empty field puts the caret hard against
+   its LEFT edge, so clicking anywhere in 666px of transparent nothing put a
+   1px hairline somewhere the eye was not, with no box around it to anchor
+   to. Boxed and capped at 24rem, the caret lands where a caret is expected.
+   A ruled entry box is also what the form this imitates would actually have
+   printed (spec §9) — the fix and the period register agree.
+
+   `color` is set explicitly because `font: inherit` does NOT carry it:
+   inputs do not inherit colour from their parent, so the field was
+   rendering UA-default pure black (rgb(0,0,0)) rather than the warm --ink
+   this document uses nowhere else but here. caret-color is named for the
+   same reason — the caret follows `color`, and neither should be left to
+   the user agent on the one screen that has to invite typing.
+
+   font-size comes AFTER the `font: inherit` shorthand deliberately; the
+   shorthand resets font-size, so reversing these two lines silently drops
+   the larger text (and the taller, easier-to-see caret that comes with it). */
 .name-input {
-  font: inherit; background: transparent; border: 0; border-bottom: 1px solid var(--ink);
-  padding: .3rem 0; width: 100%; margin-bottom: 2rem;
-  /* The field is transparent and borderless apart from its baseline rule,
-     so the default caret can be genuinely hard to spot against the paper.
-     Named explicitly so the cursor is unmistakably there on load. */
-  caret-color: var(--ink);
+  font: inherit; font-size: 1.15rem;
+  background: transparent; color: var(--ink); caret-color: var(--ink);
+  border: 1px solid var(--ink); padding: .55rem .7rem;
+  width: 100%; max-width: 24rem; margin-bottom: 2rem;
 }
 .begin {
   font-family: var(--mono); font-size: .78rem; letter-spacing: .14em;
