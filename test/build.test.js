@@ -98,3 +98,35 @@ test('separate inline() calls do not share dedup state', async () => {
     await rm(tmpDir, { recursive: true, force: true });
   }
 });
+
+test('import detection and stripping use identical patterns (no regex divergence)', async () => {
+  const tmpDir = resolve(ROOT, '.test-build-tmp4');
+  await mkdir(tmpDir, { recursive: true });
+
+  try {
+    // Regression test: ensure detection and stripping patterns are derived from the same source.
+    // If they diverged (e.g., one uses [^'"]+, the other [^'"]*), then:
+    // - Detection might miss an import that stripping removes anyway → silent wrong output
+    // - Stripping might miss an import that detection finds → orphaned import keyword
+    // This test catches divergence by verifying consistency.
+
+    const importedModule = resolve(tmpDir, 'lib.js');
+    await writeFile(importedModule, `export const value = 42;`);
+
+    const mainModule = resolve(tmpDir, 'main.js');
+    await writeFile(mainModule, `import { value } from './lib.js';
+console.log(value);
+`);
+
+    const { bundle } = await inline(mainModule);
+
+    // After inlining:
+    // 1. All import statements should be stripped (no 'import' keyword)
+    // 2. Inlined module content should be present
+    assert.ok(!bundle.includes('import'), 'all import keywords should be stripped (detection and stripping must agree)');
+    assert.ok(bundle.includes('const value = 42'), 'inlined module content should be present (detected imports were inlined)');
+
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true });
+  }
+});

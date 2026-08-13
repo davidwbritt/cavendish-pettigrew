@@ -1,10 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
-// Define regex patterns once and reuse them consistently
-const IMPORT_PATTERN = /^import\s+[\s\S]*?from\s*['"](\.[^'"]+)['"];?$/gm;
-const IMPORT_STRIP_PATTERN = /^import\s+[\s\S]*?from\s*['"]\.[^'"]*['"];?$/gm;
-const EXPORT_BLOCK_PATTERN = /^export\s*\{[\s\S]*?\};?$/gm;
+// Define pattern sources once as strings to guarantee consistency
+const IMPORT_RE_SRC = String.raw`^import\s+[\s\S]*?from\s*['"](\.[^'"]+)['"];?$`;
+const EXPORT_BLOCK_RE_SRC = String.raw`^export\s*\{[\s\S]*?\};?$`;
+
+// Constants for single-use patterns
 const EXPORT_KEYWORD_PATTERN = /^export\s+/gm;
 
 export async function inline(path) {
@@ -15,18 +16,19 @@ export async function inline(path) {
     seen.add(filePath);
     const src = await readFile(filePath, 'utf8');
 
-    // Match multi-line imports with both single and double quotes
-    const imports = [...src.matchAll(IMPORT_PATTERN)];
+    // Construct fresh RegExp for detection from single source
+    const importPattern = new RegExp(IMPORT_RE_SRC, 'gm');
+    const imports = [...src.matchAll(importPattern)];
     let out = '';
     for (const [, rel] of imports) {
       out += await inlineRecursive(resolve(dirname(filePath), rel));
     }
 
     out += src
-      // Strip export { ... }; blocks entirely
-      .replace(EXPORT_BLOCK_PATTERN, '')
-      // Strip all import statements (including multi-line)
-      .replace(IMPORT_STRIP_PATTERN, '')
+      // Strip export { ... }; blocks entirely (using source-derived pattern)
+      .replace(new RegExp(EXPORT_BLOCK_RE_SRC, 'gm'), '')
+      // Strip all import statements (including multi-line) from single source
+      .replace(new RegExp(IMPORT_RE_SRC, 'gm'), '')
       // Strip export keyword from all other statements
       .replace(EXPORT_KEYWORD_PATTERN, '');
 
