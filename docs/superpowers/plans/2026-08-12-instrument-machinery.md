@@ -1928,7 +1928,7 @@ git commit -m "feat: form shell, question screen and freezable timer driver"
 
 **Interfaces:**
 - Consumes: `TRICK_NAMES` from `src/tricks.js`
-- Produces: `applyTrick(trickName, { optionElements, onChoose, isTouch }) -> detach()`, `TOUCH_SUBSTITUTIONS`
+- Produces: `applyTrick(trickName, { optionElements, onChoose, rng, isTouch }) -> detach()`, `TOUCH_SUBSTITUTIONS`, `effectiveTrick(name, isTouch) -> string`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1937,7 +1937,7 @@ git commit -m "feat: form shell, question screen and freezable timer driver"
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TRICK_NAMES } from '../src/tricks.js';
-import { TOUCH_SUBSTITUTIONS, effectiveTrick, isEscapable } from '../src/ui/effects.js';
+import { TOUCH_SUBSTITUTIONS, effectiveTrick } from '../src/ui/effects.js';
 
 test('every trick declares whether it survives on touch', () => {
   for (const name of TRICK_NAMES) {
@@ -1959,9 +1959,10 @@ test('pointer-agnostic tricks are unchanged on touch', () => {
   }
 });
 
-test('every trick is declared escapable', () => {
+test('every trick maps to a defined effective form on both pointer types', () => {
   for (const name of TRICK_NAMES) {
-    assert.equal(isEscapable(name), true, `${name} traps the taker`);
+    assert.ok(effectiveTrick(name, false), `${name} has no mouse form`);
+    assert.ok(effectiveTrick(name, true), `${name} has no touch form`);
   }
 });
 ```
@@ -1990,11 +1991,10 @@ export function effectiveTrick(name, isTouch) {
   return isTouch ? TOUCH_SUBSTITUTIONS[name] : name;
 }
 
-// Every trick must leave a route to the intended answer. This is a contract,
-// asserted in tests and relied upon by the review screen.
-export function isEscapable() { return true; }
-
-export function applyTrick(name, { optionElements, onChoose, isTouch = false }) {
+// CONTRACT: every effect below must leave a route to the intended answer —
+// spec §5, scheduling invariant 6. Enforced by construction: each effect either
+// delays input or reroutes it through onChoose, never removes the option.
+export function applyTrick(name, { optionElements, onChoose, rng, isTouch = false }) {
   const trick = effectiveTrick(name, isTouch);
   const cleanups = [];
 
@@ -2008,7 +2008,7 @@ export function applyTrick(name, { optionElements, onChoose, isTouch = false }) 
   if (trick === 'deadClick') {
     let swallowed = 0;
     onEach('click', e => {
-      if (swallowed < 2 && Math.random() < 0.8) { swallowed++; e.stopImmediatePropagation(); e.preventDefault(); }
+      if (swallowed < 2 && rng() < 0.8) { swallowed++; e.stopImmediatePropagation(); e.preventDefault(); }
     }, true);
   }
 
@@ -2747,6 +2747,7 @@ function nextQuestion() {
     detach = applyTrick(trick, {
       optionElements: screen.optionElements,
       onChoose: choice => { commit(choice, screen.driver.elapsedMs(), screen.driver); advance(screen, detach); },
+      rng,
       isTouch
     });
   }
