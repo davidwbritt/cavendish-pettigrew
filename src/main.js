@@ -1,10 +1,10 @@
 import { mulberry32 } from './rng.js';
-import { QUESTIONS, questionByNumber } from './questions.js';
+import { QUESTIONS } from './questions.js';
 import { scheduleTricks } from './tricks.js';
 import { introduceTypo, displayNameFor } from './name.js';
 import { createTranscript, recordAnswer, amendmentCount } from './transcript.js';
 import { chooseFalsifications } from './falsify.js';
-import { computeFaculties, headlineCentile, classify, preliminaryScore, composureAssessed } from './scoring.js';
+import { computeFaculties, headlineCentile, classify, composureAssessed } from './scoring.js';
 import { buildReport } from './report.js';
 import { applyTrick } from './ui/effects.js';
 import { createSyntheticCursor, runFinale, shouldRunFinale } from './ui/cursor.js';
@@ -127,7 +127,12 @@ function showCertificate() {
     amendmentCount: amendmentCount(transcript), rng,
     composureAssessed: composureAssessed(transcript)
   });
-  void preliminaryScore(100, amendmentCount(transcript));
+  // The running score (preliminaryScore) is a review-screen-only concept —
+  // renderReview already computes and displays it live as amendments land
+  // (see screens.js's refreshScore()). The certificate has no numeric slot
+  // for it (only the per-faculty index table and the headline centile), so
+  // recomputing it here would be a discarded duplicate — removed rather
+  // than kept as dead arithmetic (fix round 1, Task 15 review, Finding 4).
   renderCertificate(root, {
     report, faculties, centile,
     onDebrief: e => { e.preventDefault(); renderDebrief(root); }

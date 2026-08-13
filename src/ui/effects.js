@@ -6,36 +6,49 @@
 //
 // CONTRACT: every effect below must leave a route to the intended answer —
 // spec §5, scheduling invariant 6. Enforced by construction: each effect
-// either delays input, reroutes it through onChoose, or intercepts it
-// through a bounded counter, but never removes the option or traps the
-// taker indefinitely. An uncorrectable wrong answer produces rage; a
-// correctable one produces self-doubt, which is the entire point.
+// either delays input, reroutes it via a bounded interceptor swallow, or
+// intercepts it through a bounded counter, but never removes the option or
+// traps the taker indefinitely. An uncorrectable wrong answer produces
+// rage; a correctable one produces self-doubt, which is the entire point.
 //
 // INTERCEPTION: screens.js registers the real option onclick at render
 // time; applyTrick runs afterwards and can only attach LATER listeners.
 // Same-node listeners fire in registration order, so a plain click
 // listener added here can never pre-empt (or usefully cancel) the real
 // handler — stopImmediatePropagation() cannot un-invoke a handler that
-// already ran. deadClick and ghostSelection therefore do not use click
-// listeners at all: they install an interceptor via setInterceptor(fn),
-// which screens.js consults BEFORE committing a selection. The
-// interceptor returns null to swallow the click (no selection, no commit)
-// or an option index to proceed with (the original index, or a remapped
-// one). If setInterceptor is not supplied, these two tricks degrade to
-// no-ops rather than throwing.
+// already ran. deadClick, ghostSelection, doubleMark and stickyAnswer
+// therefore do not use click listeners to act AFTER a click at all: they
+// install an interceptor via setInterceptor(fn), which screens.js consults
+// BEFORE committing a selection. The interceptor returns null to swallow
+// the click (no selection, no commit) or an option index to proceed with
+// (the original index, or a remapped one). If setInterceptor is not
+// supplied, all four of these tricks degrade to no-ops rather than
+// throwing.
+//
+// HISTORICAL BUG (fix round 1, Task 15 review): doubleMark and stickyAnswer
+// originally acted via a plain click listener registered AFTER screens.js's
+// real onclick, on the theory that a delayed revert (a 1400ms ghost, a
+// 1000ms sticky-then-revert) could run once the real handler had already
+// committed. It never could: main.js's teardown is synchronous by hard
+// requirement (an answer must never commit to an already-advanced
+// question — see main.js's advance()), so the real click handler calls
+// detach() before the browser's dispatch loop ever reaches a
+// later-registered listener on the same node. Per the DOM spec, a listener
+// removed mid-dispatch never runs. Both tricks were therefore dead code —
+// scheduled, but never actually invoked. They are now redesigned around the
+// same swallow-the-click-first shape as deadClick/ghostSelection: SWALLOW
+// the taker's first click (so there is a screen left to act on), fake a
+// selection, then let the second click commit for real.
 //
 // TIMER HAZARD: doubleMark, buttonFlinch, stickyAnswer and phantomLock all
 // schedule setTimeout callbacks. Removing an event listener does NOT cancel
 // an already-scheduled timeout — if a question expires and the UI advances
 // before one of those timers fires, the callback would run against the
-// wrong, already-advanced question. stickyAnswer's callback calls
-// onChoose(), so an uncancelled timer would silently commit an answer to a
-// question the taker has already left: silent transcript corruption. To
-// close that hole, every setTimeout in this module is created through
-// `schedule()` below, and detach() clears every outstanding id. detach()
-// also undoes any inline style, class or attribute an effect applied, and
-// clears any interceptor it installed, so nothing it touched survives
-// teardown.
+// wrong, already-advanced question. To close that hole, every setTimeout in
+// this module is created through `schedule()` below, and detach() clears
+// every outstanding id. detach() also undoes any inline style, class or
+// attribute an effect applied, and clears any interceptor it installed, so
+// nothing it touched survives teardown.
 
 // Touch has no hover and no cursor, so flinch and phantom-lock are replaced
 // rather than skipped — mobile takers must meet the same number of tricks.
@@ -94,30 +107,42 @@ export function applyTrick(name, { optionElements, onChoose, rng, isTouch = fals
   }
 
   if (trick === 'doubleMark') {
-    const marked = new Set();
-    let lastReal = null;
-    onEach('click', e => {
-      const i = Number(e.currentTarget.dataset.index);
-      // No interceptor is installed for this trick, so the real onclick
-      // (registered by screens.js, earlier in listener order) has already
-      // committed this selection by the time this handler runs.
-      lastReal = i;
-      const ghost = optionElements[(i + 2) % optionElements.length];
-      ghost.setAttribute('aria-pressed', 'true');
-      marked.add(ghost);
-      schedule(() => {
-        marked.delete(ghost);
-        // If the taker's genuine selection has since landed on this same
-        // node, clearing it here would silently undo their real answer's
-        // visual state. Only revert if it's still just a decoy.
-        if (Number(ghost.dataset.index) === lastReal) return;
-        ghost.setAttribute('aria-pressed', 'false');
-      }, 1400);
+    // Swallows exactly the taker's FIRST click: lights up both the option
+    // they actually picked and a decoy two slots over (the original
+    // (i + 2) % length ghost formula — with 4 options this always lands on
+    // a distinct option), holds both for ~900ms, then reverts. The second
+    // click on any option passes through and commits normally — bounded to
+    // one swallow, so the taker is never stuck. Two options lit (vs.
+    // stickyAnswer's one) keeps the two tricks visually distinct from each
+    // other, so neither is identifiable by its shape alone.
+    let swallowed = false;
+    let real = null;
+    let ghost = null;
+    const revert = () => {
+      if (real) { real.setAttribute('aria-pressed', 'false'); real = null; }
+      if (ghost) { ghost.setAttribute('aria-pressed', 'false'); ghost = null; }
+    };
+    setInterceptor?.(i => {
+      if (!swallowed) {
+        swallowed = true;
+        real = optionElements[i];
+        ghost = optionElements[(i + 2) % optionElements.length];
+        real.setAttribute('aria-pressed', 'true');
+        ghost.setAttribute('aria-pressed', 'true');
+        schedule(revert, 900);
+        return null;
+      }
+      // Second click: about to commit for real. screens.js's own
+      // selectOption() is what sets the genuine aria-pressed state right
+      // after this returns — if the real click lands on a node we're still
+      // holding lit, drop our reference to it now so neither the pending
+      // 900ms timer nor detach()'s cleanup below clobbers that genuine
+      // selection afterwards.
+      if (optionElements[i] === real) real = null;
+      if (optionElements[i] === ghost) ghost = null;
+      return i;
     });
-    cleanups.push(() => {
-      for (const ghost of marked) ghost.setAttribute('aria-pressed', 'false');
-      marked.clear();
-    });
+    cleanups.push(revert);
   }
 
   if (trick === 'buttonFlinch') {
@@ -138,14 +163,33 @@ export function applyTrick(name, { optionElements, onChoose, rng, isTouch = fals
   }
 
   if (trick === 'stickyAnswer') {
-    let previous = null;
-    onEach('click', e => {
-      const i = Number(e.currentTarget.dataset.index);
-      const revertTo = previous;
-      previous = i;
-      if (revertTo === null) return;
-      schedule(() => onChoose(revertTo), 1000);
+    // Swallows exactly the taker's FIRST click: lights up the single option
+    // they picked so it looks committed, holds it for ~700ms, then reverts
+    // — the taker watches their answer vanish and must click again. The
+    // second click on any option passes through and commits normally —
+    // bounded to one swallow, so the taker is never stuck. One option lit
+    // (vs. doubleMark's two) keeps the two tricks visually distinct from
+    // each other.
+    let swallowed = false;
+    let lit = null;
+    const revert = () => {
+      if (lit) { lit.setAttribute('aria-pressed', 'false'); lit = null; }
+    };
+    setInterceptor?.(i => {
+      if (!swallowed) {
+        swallowed = true;
+        lit = optionElements[i];
+        lit.setAttribute('aria-pressed', 'true');
+        schedule(revert, 700);
+        return null;
+      }
+      // Second click: about to commit for real — see doubleMark's identical
+      // guard above for why this reference must be dropped before
+      // screens.js sets the genuine aria-pressed state.
+      if (optionElements[i] === lit) lit = null;
+      return i;
     });
+    cleanups.push(revert);
   }
 
   if (trick === 'phantomLock') {

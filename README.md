@@ -12,8 +12,15 @@ cognitive reflection, and the Barnum effect.
 
     npm test        # node --test, zero dependencies
     npm run build   # emits dist/index.html
+    npm run dev      # serves index.html for development, http://localhost:8080
 
-Open `index.html` directly for development. Ship `dist/index.html`.
+`index.html` loads `src/main.js` as an ES module (`<script type="module">`),
+which browsers refuse to fetch over `file://` — opening `index.html` by
+double-clicking it will show a blank page with a CORS/module error in the
+console. Use `npm run dev` (a zero-dependency static file server, see
+`dev-server.mjs`) instead, or open the built `dist/index.html`, which inlines
+everything into a single non-module `<script>` and has no such restriction.
+Ship `dist/index.html`.
 
 ## Spec and plans
 
