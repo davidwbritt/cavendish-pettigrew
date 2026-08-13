@@ -60,3 +60,41 @@ test('an unanswered question records a null choice', () => {
   recordAnswer(t, entry(7, { choice: null }));
   assert.equal(entryFor(t, 7).choice, null);
 });
+
+test('null to substantive answer (first recorded) does not increment changes', () => {
+  const t = createTranscript();
+  recordAnswer(t, entry(3, { choice: null }));
+  recordAnswer(t, entry(3, { choice: 2 }));
+  assert.equal(entryFor(t, 3).choice, 2);
+  assert.equal(entryFor(t, 3).changes, 0);
+});
+
+test('substantive answer to null does not increment changes', () => {
+  const t = createTranscript();
+  recordAnswer(t, entry(5, { choice: 1 }));
+  recordAnswer(t, entry(5, { choice: null }));
+  assert.equal(entryFor(t, 5).choice, null);
+  assert.equal(entryFor(t, 5).changes, 0);
+});
+
+test('null to null does not increment changes', () => {
+  const t = createTranscript();
+  recordAnswer(t, entry(8, { choice: null }));
+  recordAnswer(t, entry(8, { choice: null }));
+  assert.equal(entryFor(t, 8).choice, null);
+  assert.equal(entryFor(t, 8).changes, 0);
+});
+
+test('substantive answer to different substantive answer increments changes', () => {
+  const t = createTranscript();
+  recordAnswer(t, entry(2, { choice: 1 }));
+  recordAnswer(t, entry(2, { choice: 3 }));
+  assert.equal(entryFor(t, 2).choice, 3);
+  assert.equal(entryFor(t, 2).changes, 1);
+});
+
+test('first-ever record ignores changes value in payload and forces zero', () => {
+  const t = createTranscript();
+  recordAnswer(t, entry(6, { choice: 2, changes: 7 }));
+  assert.equal(entryFor(t, 6).changes, 0);
+});
