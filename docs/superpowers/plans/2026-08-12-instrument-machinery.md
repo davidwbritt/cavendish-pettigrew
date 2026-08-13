@@ -3006,6 +3006,77 @@ Not part of this plan. Once the machinery is green:
    most for the three cognitive-reflection items, since at least one falsified
    row is always drawn from a CRT question the taker got right.
 
+   **(c) THE AUDIENCE (owner, 2026-08-13) — this governs all content.**
+
+   The readers are **people in computing — architects, engineers, technical leads
+   — passing the far end of mid-life.** Mostly the owner's professional circle,
+   which skews male, but explicitly NOT only men: his wife will take it, and so
+   will others outside that skew. Write for the *career stage and profession*,
+   never for the gender.
+
+   That distinction is a craft constraint, not just courtesy. The material that
+   lands here — unused capacity, the road not taken, retirement arithmetic,
+   checking what former colleagues did next — is entirely gender-neutral and
+   loses nothing by staying so. Male-coded specifics would buy no extra bite and
+   would break the piece completely for the first reader outside the skew, which
+   is the worst possible failure for a Barnum instrument: a statement that
+   obviously is not about you destroys the credibility of every statement around
+   it. The certificate's third-person clinical register (*"the subject"*) is
+   already gender-neutral and should stay that way — it is doing this work for
+   free.
+
+   Lean into the mid-life reckoning these readers are already conducting
+   privately.
+
+   Why this makes the piece much stronger: Forer's original 1948 statements
+   already skew toward exactly this reader — *"a great deal of unused capacity
+   which you have not turned to your advantage"*, *"at times you have serious
+   doubts as to whether you have made the right decision"*, *"some of your
+   aspirations tend to be pretty unrealistic"*. Written for a general audience
+   those are horoscope filler. Read at fifty-two by someone who chose the stable
+   job over the risky one, they stop being filler. The Barnum effect gets sharper
+   the better you know the reader, and here we know them exactly.
+
+   **Where the mid-life content goes — and where it must NOT.** Put it in the
+   PROSE: the Barnum pool, the insinuations, and the `affect` questions of the
+   descent. Keep the seven faculties clinical and content-free — they must stay
+   plausible psychometrics with invented names. The joke depends on a
+   dispassionate apparatus delivering personal material; if the faculty labels
+   themselves start referencing regret, the instrument stops being an instrument
+   and becomes a greetings card.
+
+   **Register, by example** — not content to use verbatim, but the aim:
+   - Barnum, re-aimed: *"The subject retains a clear memory of the point at which
+     a different professional trajectory was available, and has revisited it more
+     recently than they would report."*
+   - Insinuation, tier 1: *"Subjects in this band commonly maintain an unread
+     accumulation of professional reading."*
+   - Insinuation, tier 2: *"Periodic examination of former colleagues' current
+     positions is characteristic of this profile."*
+   - Insinuation, tier 3 — the arithmetic everyone in this bracket has done and
+     nobody mentions: *"The subject has calculated, to the year, how long they
+     would need to continue."*
+
+   The insinuation criterion is unchanged — **privately near-universal, publicly
+   unadmitted** — but a known audience makes it far easier to hit. Arm-licking is
+   universal-human; *"has rewritten a resignation message without sending it"* is
+   universal to *these* readers and lands twice as hard.
+
+   **THE RISK, and it is real.** Aiming this precisely turns a Barnum gag into
+   something that can genuinely connect. A friend reading a joke certificate is
+   fine; a friend reading a document that quietly and accurately enumerates the
+   compromises of his working life may not be, especially if he is having a worse
+   year than you know. Two mitigations, both mandatory:
+   1. **Punch at the shared condition, never at the individual's failure.** The
+      subject of every line is the profile, not the person's inadequacy. "This is
+      characteristic of the band" is funny; "you settled" is not.
+   2. **The debrief becomes load-bearing.** It was a nice-to-have when the
+      content was nonsense words. With this audience it is the thing that
+      converts "that stung" into "ah — it was a demonstration, and it got me the
+      way it gets everyone." Give it genuine warmth, and keep the existing
+      honest explanation of the Forer effect: the reveal that *everyone* receives
+      these sentences is the mercy.
+
    **(b) Q20 and Q22 carry a trick in EVERY run.** This falls out of the owner's
    decision to exclude Q24 from eligibility while keeping five tricks: with nine
    eligible slots the non-adjacency constraint admits exactly one shape, so Q20
