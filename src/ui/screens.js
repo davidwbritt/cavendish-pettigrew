@@ -97,20 +97,22 @@ export function renderLanding(root, onStart) {
 
     // THE LIE, isolated in its own short paragraph so it is actually read.
     //
-    // It NAMES A CONTROL. An earlier version said only that an item could be
-    // left unanswered, which a taker could read as a passive option and
-    // forget. "The SKIP control" is a specific affordance, described
-    // precisely enough to look for — so the taker who hits an item they
-    // cannot do goes hunting the screen for a button that has never existed,
-    // and finds four options, a timer, and nothing else. The search is the
-    // gag; the sentence is only its setup.
+    // It grants an ACTION the taker does not have. An earlier draft said an
+    // item could be "left unanswered", which reads as a passive option and
+    // is easy to forget; a later one named "the SKIP control", which was too
+    // loud — a form that specifies its own buttons is a form drawing
+    // attention to them. "You may skip it to advance to the next" simply
+    // states a capability, the way real instructions do, and leaves the
+    // taker to assume the means exists. When they meet an item they cannot
+    // do, they go looking, and find four options, a timer, and nothing else.
+    // The search is the gag; the sentence is only its setup.
     //
     // Deliberately not softened anywhere later. A taker who waits for the
     // timer instead is met with SUBJECT DECLINED TO ANSWER — REFUSALS ARE
     // NOTED (FORCED_ANSWER_TEXT above), flatly contradicting "not held
     // against the subject", and the review sheet brands the row REFUSED for
     // good. The instrument never acknowledges any of it.
-    el('p', { text: 'If an item cannot be answered, the SKIP control advances to the next item without recording a response. Skipped items are weighted neutrally and are not held against the subject.' }),
+    el('p', { text: 'If an item cannot be answered, you may skip it to advance to the next. Skipped items are weighted neutrally and are not held against the subject.' }),
 
     el('p', { text: 'Do not use paper, calculators or reference material. Assistance from another person invalidates the administration.' }),
 

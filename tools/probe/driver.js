@@ -56,7 +56,7 @@
     {
       const body = document.body.innerText || '';
       // The instruction that is not true. There is no skip control anywhere.
-      log('landing: SKIP control promised? ' + body.includes('the SKIP control advances to the next item'));
+      log('landing: skip promised? ' + body.includes('you may skip it to advance to the next'));
       log('landing: thirty-second promise present (undefended)? ' + body.includes('An ample thirty seconds is allowed for each item'));
       log('landing: any skip/pass control rendered? '
         + $$('button').map(b => b.textContent.trim()).join('|'));
