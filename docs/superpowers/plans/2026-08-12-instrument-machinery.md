@@ -709,7 +709,12 @@ test('eligible questions exclude Q1-10, recovery questions and the finale', () =
     assert.ok(!RECOVERY_QUESTIONS.includes(n), `Q${n} is a recovery question`);
     assert.notEqual(n, FINALE_QUESTION, 'finale must not carry a bag trick');
   }
-  assert.deepEqual(eligible, [11, 12, 14, 15, 17, 18, 20, 21, 22, 24]);
+  assert.deepEqual(eligible, [11, 12, 14, 15, 17, 18, 20, 21, 22]);
+});
+
+test('Q24 is never sabotaged — the closing question stays gentle', () => {
+  assert.ok(!eligibleQuestions().includes(24));
+  for (const s of schedules()) assert.ok(!s.has(24));
 });
 
 test('every schedule places exactly TRICK_COUNT tricks', () => {
@@ -775,11 +780,14 @@ export const TRICK_NAMES = [
 export const FINALE_QUESTION = 23;
 export const TRICK_COUNT = 5;
 
+export const GENTLE_CLOSER = 24;
+
 export function eligibleQuestions() {
   const out = [];
   for (let n = 11; n <= 24; n++) {
     if (RECOVERY_QUESTIONS.includes(n)) continue;
     if (n === FINALE_QUESTION) continue;
+    if (n === GENTLE_CLOSER) continue;
     out.push(n);
   }
   return out;
