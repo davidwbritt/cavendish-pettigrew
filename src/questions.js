@@ -35,20 +35,57 @@ export function validateQuestions(qs) {
   if (qs.length !== 24) errors.push(`expected 24 questions, got ${qs.length}`);
 
   qs.forEach((item, i) => {
+    // Guard against null/undefined/non-object entries
+    if (item === null || item === undefined || typeof item !== 'object') {
+      errors.push(`Q${i + 1}: entry is not an object`);
+      return; // skip remaining checks for this item
+    }
+
     const label = `Q${item.n ?? i + 1}`;
     if (item.n !== i + 1) errors.push(`${label}: out of order`);
-    if (!PHASES.includes(item.phase)) errors.push(`${label}: bad phase "${item.phase}"`);
-    if (!KINDS.includes(item.kind)) errors.push(`${label}: bad kind "${item.kind}"`);
+
+    // Check prompt is non-empty and non-whitespace
+    if (!item.prompt || typeof item.prompt !== 'string' || !item.prompt.trim()) {
+      errors.push(`${label}: prompt is missing or empty`);
+    }
+
+    // Check options array and content
     if (!Array.isArray(item.options) || item.options.length !== 4) {
       errors.push(`${label}: must have exactly 4 options`);
+    } else {
+      // Check each option is non-empty
+      for (let j = 0; j < 4; j++) {
+        if (!item.options[j] || typeof item.options[j] !== 'string' || !item.options[j].trim()) {
+          errors.push(`${label}: option ${j} is missing or empty`);
+        }
+      }
+      // Check for duplicate options
+      const optionSet = new Set(item.options);
+      if (optionSet.size !== 4) {
+        errors.push(`${label}: contains duplicate options`);
+      }
     }
+
+    if (!PHASES.includes(item.phase)) errors.push(`${label}: bad phase "${item.phase}"`);
+    if (!KINDS.includes(item.kind)) errors.push(`${label}: bad kind "${item.kind}"`);
+
+    // Check phase matches n range for all three bands
+    if (item.n <= 10 && item.phase !== 'deposit') {
+      errors.push(`${label}: Q1-10 must be deposit phase`);
+    }
+    if (item.n >= 11 && item.n <= 20 && item.phase !== 'descent') {
+      errors.push(`${label}: Q11-20 must be descent phase`);
+    }
+    if (item.n >= 21 && item.phase !== 'farce') {
+      errors.push(`${label}: Q21-24 must be farce phase`);
+    }
+
     if (item.correct !== null) {
       if (!Number.isInteger(item.correct) || item.correct < 0 || item.correct > 3) {
         errors.push(`${label}: correct index out of range`);
       }
     }
     if (item.n <= 10) {
-      if (item.phase !== 'deposit') errors.push(`${label}: Q1-10 must be deposit phase`);
       if (item.nonsense) errors.push(`${label}: deposit must not use nonsense vocabulary`);
       if (item.correct === null) errors.push(`${label}: deposit must be solvable`);
     }
@@ -61,7 +98,7 @@ export function validateQuestions(qs) {
     }
   });
 
-  const deposit = qs.filter(x => x.phase === 'deposit');
+  const deposit = qs.filter(x => x && x.phase === 'deposit');
   const need = { crt: 3, syllogism: 3, sequence: 2, spatial: 2 };
   for (const [kind, wanted] of Object.entries(need)) {
     const got = deposit.filter(x => x.kind === kind).length;
