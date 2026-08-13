@@ -8,11 +8,17 @@ async function inline(path) {
   if (seen.has(path)) return '';
   seen.add(path);
   const src = await readFile(path, 'utf8');
-  const imports = [...src.matchAll(/^import\s+.*?from\s+'(\.[^']+)';?$/gm)];
+  // Match multi-line imports with both single and double quotes
+  const importPattern = /^import\s+[\s\S]*?from\s*['"](\.[^'"]+)['"];?$/gm;
+  const imports = [...src.matchAll(importPattern)];
   let out = '';
   for (const [, rel] of imports) out += await inline(resolve(dirname(path), rel));
   out += src
-    .replace(/^import\s+.*?from\s+'\.[^']+';?$/gm, '')
+    // Strip export { ... }; blocks entirely
+    .replace(/^export\s*\{[\s\S]*?\};?$/gm, '')
+    // Strip all import statements (including multi-line)
+    .replace(/^import\s+[\s\S]*?from\s*['"]\.[^'"]*['"];?$/gm, '')
+    // Strip export keyword from all other statements
     .replace(/^export\s+/gm, '');
   return out + '\n';
 }
