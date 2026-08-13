@@ -10,8 +10,9 @@ cognitive reflection, and the Barnum effect.
 
 ## Development
 
-    npm test        # node --test, zero dependencies
-    npm run build   # emits dist/index.html
+    npm test             # node --test, zero dependencies
+    npm run build        # emits dist/index.html
+    tools/probe/run.sh   # end-to-end browser click-through (needs Chrome)
     npm run dev      # serves index.html for development, http://localhost:8080
 
 `index.html` loads `src/main.js` as an ES module (`<script type="module">`),
@@ -39,6 +40,8 @@ workflow to automate this — both are intentionally out of scope for now.
 
 - `docs/superpowers/specs/2026-08-12-cavendish-pettigrew-design.md`
 - `docs/superpowers/plans/2026-08-12-instrument-machinery.md`
-- `docs/superpowers/plans/` — Plan 2 authors the question and statement content
+- `docs/superpowers/plans/2026-08-13-content-authoring.md` — **Plan 2: next steps.**
+  Self-contained brief for authoring the 24 questions and re-aiming the
+  certificate prose. Start here.
 
 Built by Dave with Claude. Please do not spoil it for anyone.
