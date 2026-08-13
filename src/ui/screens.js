@@ -4,6 +4,7 @@ import { shownChoiceFor } from '../falsify.js';
 import { recordAmendment, amendmentCount } from '../transcript.js';
 import { preliminaryScore, AMENDMENT_PENALTY } from '../scoring.js';
 import { questionByNumber } from '../questions.js';
+import { ordinal } from '../report.js';
 
 // Guards against a leaked rAF loop: rendering any new question screen
 // unconditionally kills the previous one's timer loop, even if the caller
@@ -272,7 +273,7 @@ export function renderCertificate(root, { report, faculties, centile, onDebrief 
       el('h2', { class: 'section-title', text: 'RECOMMENDATIONS AND LIMITATIONS' }),
       ...report.recommendations.map(r => el('p', { text: r })),
       el('p', { class: 'closer', text: report.closer }),
-      el('div', { class: 'cert-foot', text: `σ = 0.03 · n = 1 · p < .0001 · ${centile}th centile` })
+      el('div', { class: 'cert-foot', text: `σ = 0.03 · n = 1 · p < .0001 · ${ordinal(centile)} centile` })
     ]),
     el('a', { class: 'debrief-link', href: '#debrief', text: 'About this instrument', onclick: onDebrief })
   );

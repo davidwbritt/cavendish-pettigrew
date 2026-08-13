@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mulberry32 } from '../src/rng.js';
 import { BARNUM, INSINUATION_TIERS } from '../src/statements.js';
-import { drawStatements, buildReport } from '../src/report.js';
+import { drawStatements, buildReport, ordinal } from '../src/report.js';
 import { FACULTIES } from '../src/scoring.js';
 import { CERTIFICATE_MAX_WIDTH_PX, certificateIndexRows } from '../src/ui/screens.js';
 
@@ -35,6 +35,40 @@ test('no statement repeats within a single certificate', () => {
     const d = drawStatements(mulberry32(s));
     const all = [...d.barnum, ...d.insinuations];
     assert.equal(new Set(all).size, all.length);
+  }
+});
+
+// fix round 2, Task 15 review: the certificate previously hardcoded "th" in
+// two places (src/report.js's summary line and src/ui/screens.js's
+// cert-foot), so "91st", "92nd" and "93rd" — three of headlineCentile()'s
+// six possible values, roughly half of all runs — rendered as "91th",
+// "92th", "93th". ordinal() is the single shared fix; both call sites now
+// go through it. Written for the general case (not just 91-96) so a future
+// retuning of the centile range can't silently reintroduce the bug.
+test('ordinal formats the standard exceptions and the general last-digit rule', () => {
+  const cases = {
+    1: '1st', 2: '2nd', 3: '3rd', 4: '4th',
+    11: '11th', 12: '12th', 13: '13th',
+    21: '21st', 22: '22nd', 23: '23rd',
+    91: '91st', 92: '92nd', 93: '93rd', 94: '94th', 95: '95th', 96: '96th',
+    101: '101st', 111: '111th', 112: '112th', 113: '113th'
+  };
+  for (const [n, expected] of Object.entries(cases)) {
+    assert.equal(ordinal(Number(n)), expected, `ordinal(${n}) should be "${expected}"`);
+  }
+});
+
+test('the full headlineCentile range (91-96) prints a grammatical ordinal in the certificate summary', () => {
+  // Hardcoded expected strings — NOT derived from ordinal() itself — so a
+  // regression in ordinal() is caught even if this test's own use of it
+  // were somehow wrong too.
+  const expected = { 91: '91st', 92: '92nd', 93: '93rd', 94: '94th', 95: '95th', 96: '96th' };
+  for (const [centile, suffixed] of Object.entries(expected)) {
+    const report = buildReport({
+      faculties, centile: Number(centile), classification: 'PROFILE 4-B — DEFERRED ANALYTIC',
+      displayName: 'DAVDI', amendmentCount: 0, rng: mulberry32(1)
+    });
+    assert.equal(report.summary[0], `Overall standing: ${suffixed} centile.`);
   }
 });
 

@@ -2,6 +2,23 @@ import { FACULTIES } from './scoring.js';
 import { shuffle } from './rng.js';
 import { BARNUM, INSINUATION_TIERS } from './statements.js';
 
+// Formats a whole number as its English ordinal ("92" -> "92nd"). Written
+// for the general case, not just headlineCentile()'s current 91-96 range —
+// a future retuning of that range must not silently reintroduce an
+// ungrammatical certificate. The 11/12/13 exception is checked against
+// n % 100 first (so 111/112/113, 211/212/213, etc. all correctly stay
+// "th") before falling back to the last-digit rule.
+export function ordinal(n) {
+  const mod100 = Math.abs(n) % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  switch (Math.abs(n) % 10) {
+    case 1: return `${n}st`;
+    case 2: return `${n}nd`;
+    case 3: return `${n}rd`;
+    default: return `${n}th`;
+  }
+}
+
 export function drawStatements(rng) {
   const barnum = shuffle(rng, BARNUM).slice(0, 10);
   const insinuations = INSINUATION_TIERS.map(tier => shuffle(rng, tier)[0]);
@@ -36,7 +53,7 @@ export function buildReport({
 
   // Immaculate. No insinuations may appear here.
   const summary = [
-    `Overall standing: ${centile}th centile.`,
+    `Overall standing: ${ordinal(centile)} centile.`,
     `Classification: ${classification}.`,
     take(), take()
   ];
