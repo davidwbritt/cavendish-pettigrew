@@ -50,19 +50,28 @@
 // attribute an effect applied, and clears any interceptor it installed, so
 // nothing it touched survives teardown.
 
-// Touch has no hover and no cursor, so flinch and phantom-lock are replaced
-// rather than skipped — mobile takers must meet the same number of tricks.
+// Touch has no hover and no cursor, so flinch, phantom-lock and hoverDrift
+// are replaced rather than skipped — mobile takers must meet the same
+// number of tricks.
 export const TOUCH_SUBSTITUTIONS = {
   deadClick: 'deadClick',
   ghostSelection: 'ghostSelection',
   doubleMark: 'doubleMark',
   stickyAnswer: 'stickyAnswer',
-  buttonFlinch: 'scrollSteal',   // the tap is consumed as a scroll gesture
-  phantomLock: 'firmPress'       // the option demands a longer press
+  buttonFlinch: 'scrollSteal',     // the tap is consumed as a scroll gesture
+  phantomLock: 'firmPress',        // the option demands a longer press
+  hoverDrift: 'hoverDriftTouch'    // the pressed highlight shows on the neighbour instead
 };
 
 export function effectiveTrick(name, isTouch) {
   return isTouch ? TOUCH_SUBSTITUTIONS[name] : name;
+}
+
+// Pure mapping used by the hoverDrift trick below, and unit-tested directly
+// (test/effects.test.js) without any DOM: for any length >= 2 this always
+// returns a valid in-range index, and it is never the hovered index itself.
+export function hoverDriftTarget(hoveredIndex, length) {
+  return (hoveredIndex + 1) % length;
 }
 
 export function applyTrick(name, { optionElements, rng, isTouch = false, setInterceptor }) {
@@ -251,6 +260,65 @@ export function applyTrick(name, { optionElements, rng, isTouch = false, setInte
       // otherwise leak — detach() removes it unconditionally too.
       cleanups.push(() => node.removeEventListener('touchend', release));
     }, { passive: false });
+  }
+
+  if (trick === 'hoverDrift') {
+    // Hovering option i lights (i + 1) % length instead — the option
+    // actually under the cursor never lights. THE CLICK IS HONEST: unlike
+    // every trick above, this one never calls setInterceptor (whatever the
+    // taker actually clicks is what commits) and never touches
+    // aria-pressed (see the module comment's HISTORICAL BUG note — that
+    // attribute is screens.js's committed-selection state alone). It only
+    // ever adds/removes .option-hover — the exact class index.html's base
+    // hover rule also uses, so a drifted highlight is pixel-identical to a
+    // real one — and .option-hover-off, which suppresses the truly hovered
+    // node's own native :hover ring via higher CSS specificity so only the
+    // decoy lights. No timers: the highlight tracks the live hover state
+    // directly, so there is nothing for schedule()/detach() to race.
+    for (const [i, node] of optionElements.entries()) {
+      const target = optionElements[hoverDriftTarget(i, optionElements.length)];
+      const enter = () => {
+        node.classList.add('option-hover-off');
+        target.classList.add('option-hover');
+      };
+      const leave = () => {
+        node.classList.remove('option-hover-off');
+        target.classList.remove('option-hover');
+      };
+      node.addEventListener('mouseenter', enter);
+      node.addEventListener('mouseleave', leave);
+      cleanups.push(() => {
+        node.removeEventListener('mouseenter', enter);
+        node.removeEventListener('mouseleave', leave);
+        // Defensive, like every other trick's cleanup above: reverts the
+        // classes directly rather than relying on a mouseleave having
+        // fired first, so a question that changes mid-hover (timeout,
+        // blind click) can never leave a highlight stuck into the next
+        // question.
+        node.classList.remove('option-hover-off');
+        target.classList.remove('option-hover');
+      });
+    }
+  }
+
+  if (trick === 'hoverDriftTouch') {
+    // Touch has no hover, so this is the direct analogue required by the
+    // project's touch-substitution policy: the pressed/active highlight
+    // shows on the neighbouring option on touchstart, using the identical
+    // shared .option-hover class, and clears on touchend. The tap still
+    // commits honestly — no interceptor, no aria-pressed here either.
+    for (const [i, node] of optionElements.entries()) {
+      const target = optionElements[hoverDriftTarget(i, optionElements.length)];
+      const start = () => target.classList.add('option-hover');
+      const end = () => target.classList.remove('option-hover');
+      node.addEventListener('touchstart', start, { passive: true });
+      node.addEventListener('touchend', end);
+      cleanups.push(() => {
+        node.removeEventListener('touchstart', start);
+        node.removeEventListener('touchend', end);
+        target.classList.remove('option-hover');
+      });
+    }
   }
 
   return () => {

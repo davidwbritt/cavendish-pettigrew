@@ -10,9 +10,13 @@ import {
 const schedules = () =>
   Array.from({ length: 500 }, (_, i) => scheduleTricks(mulberry32(i)));
 
-test('there are six named tricks', () => {
-  assert.equal(TRICK_NAMES.length, 6);
-  assert.equal(new Set(TRICK_NAMES).size, 6);
+test('there are seven named tricks, all distinct', () => {
+  assert.equal(TRICK_NAMES.length, 7);
+  assert.equal(new Set(TRICK_NAMES).size, 7);
+});
+
+test('TRICK_COUNT is unaffected by adding a seventh named trick', () => {
+  assert.equal(TRICK_COUNT, 5);
 });
 
 test('eligible questions exclude Q1-10, recovery questions, the finale, and the gentle closer', () => {

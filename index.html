@@ -48,6 +48,27 @@ body {
   font: inherit; color: inherit; background: transparent;
   border: 1px solid var(--ink); padding: .7rem .9rem; cursor: pointer;
 }
+/* Hover/focus affordance — reads as "this is what you'd pick", never as a
+   second full-black fill (that reading is reserved for aria-pressed="true"
+   below). An inverted/thicker border, drawn via `outline` INSIDE the real
+   1px border with a negative offset so it can never shift layout, and no
+   transition (this project uses instant cuts throughout). Deliberately
+   touches ONLY `outline`, never `background`/`color`, so it can never
+   contest the black fill below regardless of cascade order — a
+   hovered+selected option always still reads as selected, not merely
+   hovered. `:focus-visible` gives keyboard takers the identical affordance.
+   `.option-hover` is the SAME class the hoverDrift trick (src/ui/effects.js)
+   applies to a decoy option, so a drifted highlight is pixel-identical to a
+   real one. */
+.option:hover, .option.option-hover, .option:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: -3px;
+}
+/* Suppresses the real hovered node's OWN native :hover ring while
+   hoverDrift is steering the highlight onto its neighbour instead — higher
+   specificity (two classes + a pseudo-class) than the plain `.option:hover`
+   rule above, so it wins regardless of source order. */
+.option.option-hover-off:hover { outline: none; }
 .option[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 .option-letter { font-family: var(--mono); font-size: .78rem; }
 .forced-notice {

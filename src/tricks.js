@@ -3,7 +3,7 @@ import { shuffle } from './rng.js';
 
 export const TRICK_NAMES = [
   'deadClick', 'ghostSelection', 'doubleMark',
-  'buttonFlinch', 'stickyAnswer', 'phantomLock'
+  'buttonFlinch', 'stickyAnswer', 'phantomLock', 'hoverDrift'
 ];
 
 export const FINALE_QUESTION = 23;
