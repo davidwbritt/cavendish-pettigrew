@@ -11,7 +11,11 @@
   --blue: #2E4A6B;
   --red: #E4002B;
   --rule: rgba(46, 74, 107, .25); /* --blue at 25% — kept as one token so retuning --blue can't leave this stale */
-  --measure: 62ch;
+  /* Governs #app (the form/review flow) only — NOT .certificate, which
+     hardcodes its own 400px max-width below regardless of this value, so
+     the certificate stays fixed at portrait-phone-screenshot width no
+     matter how wide the rest of the document gets. */
+  --measure: 84ch;
   --serif: Georgia, Charter, 'Times New Roman', serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
@@ -20,7 +24,7 @@ body {
   margin: 0; background: var(--paper); color: var(--ink);
   font-family: var(--serif); font-size: 17px; line-height: 1.5;
 }
-#app { max-width: var(--measure); margin: 0 auto; padding: 3rem 1.25rem 6rem; }
+#app { max-width: var(--measure); margin: 0 auto; padding: 2rem 1.5rem 4rem; }
 .form-header {
   display: flex; gap: 2rem; border-bottom: 1px solid var(--blue);
   padding-bottom: .5rem; margin-bottom: 2rem;
