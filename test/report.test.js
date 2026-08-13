@@ -54,7 +54,7 @@ test('ordinal formats the standard exceptions and the general last-digit rule', 
     1: '1st', 2: '2nd', 3: '3rd', 4: '4th',
     11: '11th', 12: '12th', 13: '13th',
     21: '21st', 22: '22nd', 23: '23rd',
-    91: '91st', 92: '92nd', 93: '93rd', 94: '94th', 95: '95th', 96: '96th',
+    75: '75th', 76: '76th', 77: '77th', 78: '78th', 79: '79th', 80: '80th', 81: '81st', 82: '82nd', 83: '83rd', 84: '84th', 85: '85th',
     101: '101st', 111: '111th', 112: '112th', 113: '113th'
   };
   for (const [n, expected] of Object.entries(cases)) {
@@ -62,11 +62,11 @@ test('ordinal formats the standard exceptions and the general last-digit rule', 
   }
 });
 
-test('the full headlineCentile range (91-96) prints a grammatical ordinal in the certificate summary', () => {
+test('the full headlineCentile range (75-85) prints a grammatical ordinal in the certificate summary', () => {
   // Hardcoded expected strings — NOT derived from ordinal() itself — so a
   // regression in ordinal() is caught even if this test's own use of it
   // were somehow wrong too.
-  const expected = { 91: '91st', 92: '92nd', 93: '93rd', 94: '94th', 95: '95th', 96: '96th' };
+  const expected = { 75: '75th', 76: '76th', 77: '77th', 78: '78th', 79: '79th', 80: '80th', 81: '81st', 82: '82nd', 83: '83rd', 84: '84th', 85: '85th' };
   for (const [centile, suffixed] of Object.entries(expected)) {
     const report = buildReport({
       faculties, centile: Number(centile), classification: 'PROFILE 4-B — DEFERRED ANALYTIC',

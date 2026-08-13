@@ -344,10 +344,10 @@ Sub-scores are computed from the **altered** transcript, so the certificate is
 perfectly internally consistent — the arithmetic checks out, only the inputs are
 fabricated. There is nothing to argue with.
 
-**Headline centile is always flattering — 91st to 96th, never lower.** Load-
-bearing: the insults live in the sub-scores and the prose, so the overall number
-must feel like good news or the record will not be accepted. Real personality
-tests work exactly this way.
+**Headline centile is always flattering — 75th to 85th, never lower.** Still
+comfortably complimentary, but far more credible. Load-bearing: the insults live
+in the sub-scores and the prose, so the overall number must feel like good news or
+the record will not be accepted. Real personality tests work exactly this way.
 
 **Classification** is assembled from the two most extreme indices — highest
 supplies the adjective, lowest the noun — rendered clinically, e.g.
@@ -543,7 +543,7 @@ Node tests in the Spinelli mould — most of this is invariants rather than feel
 - Falsification: exactly 3 altered rows, all from Q1–10, at least one a
   cognitive-reflection item answered correctly
 - Amendment: −2 applied regardless of correctness; score respects its floor
-- Certificate: headline centile always 91–96 · exactly four insinuations · one per
+- Certificate: headline centile always 75–85 · exactly four insinuations · one per
   tier in tier order under any shuffle · none in the Summary block · closer is
   always Barnum · no statement repeats within a single certificate
 - Faculty computations are pure functions of the transcript (snapshot tested)
