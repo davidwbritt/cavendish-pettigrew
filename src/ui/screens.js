@@ -1,6 +1,6 @@
 import { el, clear } from './dom.js';
 import { createTimerDriver } from './timer-driver.js';
-import { DISPLAY_DURATION_MS } from '../clock.js';
+import { DISPLAY_DURATION_MS, RED_THRESHOLD_MS } from '../clock.js';
 import { shownChoiceFor } from '../falsify.js';
 import { recordAmendment, amendmentCount } from '../transcript.js';
 import { preliminaryScore, AMENDMENT_PENALTY } from '../scoring.js';
@@ -68,7 +68,12 @@ export function renderLanding(root, onStart) {
 // How long a committed selection's black fill (the existing
 // `.option[aria-pressed="true"]` rule) is held on screen before advancing —
 // long enough to register, short enough not to drag across 24 questions.
-export const SELECTION_PAUSE_MS = 450;
+// pauseThenAdvance below accepts an optional override (in ms) — used by
+// main.js for exactly one question, the one carrying the textSwap trick,
+// whose ~900ms hold (TEXT_SWAP_HOLD_MS, src/ui/effects.js — the single
+// source for that constant, not duplicated here) needs to be longer than
+// this so its delayed text change is actually readable before advancing.
+export const SELECTION_PAUSE_MS = 500;
 
 // How long the forced-answer notice is held on screen after a timeout —
 // long enough to read one clinical sentence.
@@ -84,6 +89,15 @@ export const FORCED_ANSWER_TEXT =
 function formatDigits(remainingMs) {
   const s = Math.ceil(remainingMs / 1000);
   return `0:${String(s).padStart(2, '0')}`;
+}
+
+// Pure so "the digits go red exactly under RED_THRESHOLD_MS, nowhere else"
+// is unit-testable without DOM (this project has no jsdom — see
+// reviewRows/applyAmendment/certificateIndexRows/debriefClosingText above
+// for the same extraction pattern). Digits only — the depletion bar is
+// deliberately untouched; see tick() below.
+export function timerIsRed(remainingMs) {
+  return remainingMs < RED_THRESHOLD_MS;
 }
 
 export function renderQuestion(root, { question, displayName, onChoose, onExpire }) {
@@ -185,6 +199,11 @@ export function renderQuestion(root, { question, displayName, onChoose, onExpire
     if (stopped) return;
     const remaining = driver.displayedRemainingMs();
     digits.textContent = formatDigits(remaining);
+    // Digits only — never the depletion bar (kept minimal and typographic,
+    // no flash/transition). `digits` is a fresh element created above on
+    // every renderQuestion() call, so a new question's 0:30 can never
+    // inherit red from the question before it.
+    digits.classList.toggle('timer-digits-red', timerIsRed(remaining));
     bar.style.width = `${(remaining / DISPLAY_DURATION_MS) * 100}%`;
     if (driver.expired()) {
       outcome.fire(() => {
@@ -208,8 +227,8 @@ export function renderQuestion(root, { question, displayName, onChoose, onExpire
   // taker actually sees it, then calls onDone (main.js's index++ /
   // nextQuestion()). Tracked by the same pauseTimer stop() above clears,
   // so a screen that goes away for any reason cannot leave this pending.
-  function pauseThenAdvance(onDone) {
-    schedulePause(SELECTION_PAUSE_MS, onDone);
+  function pauseThenAdvance(onDone, ms = SELECTION_PAUSE_MS) {
+    schedulePause(ms, onDone);
   }
 
   // Called by main.js's onExpire handler under the same already-committed,

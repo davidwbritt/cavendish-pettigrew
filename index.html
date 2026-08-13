@@ -41,6 +41,9 @@ body {
 }
 .timer { display: flex; align-items: center; gap: .6rem; }
 .timer-bar-fill { height: 1px; width: 100%; background: var(--ink); min-width: 60px; }
+/* Digits only, below 10 displayed seconds (RED_THRESHOLD_MS, src/clock.js) —
+   no transition/flash, the depletion bar stays untouched. */
+.timer-digits-red { color: var(--red); }
 .prompt { font-size: 1.06rem; margin: 0 0 2rem; white-space: pre-line; }
 .options { display: flex; flex-direction: column; gap: .5rem; }
 .option {

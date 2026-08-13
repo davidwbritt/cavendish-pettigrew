@@ -40,6 +40,18 @@ function start(name) {
 // that has already been decided (see Task 15's carry-over constraints and
 // the finale-cancel fix in the original wiring). Both onChoose and onExpire
 // below call this at the moment of commit, before scheduling any pause.
+//
+// ONE deliberate, narrow exception: textSwap (src/ui/effects.js) needs a
+// setTimeout it schedules AT commit to actually fire during the hold, which
+// is impossible if detach() (and the timer-clearing it does) runs in the
+// same tick as commit. onChoose below detects this via `detach.holdMs`
+// (present ONLY on textSwap's returned cleanup — see effects.js) and, only
+// for that one trick, calls this function from inside the pause's onDone
+// instead of immediately. This still never crosses into a LATER question —
+// teardownTrick always runs, and always finishes, before goNext() can
+// possibly be called — so the invariant this comment protects (never act
+// against an already-advanced question) still holds. Every other trick's
+// teardown is exactly as immediate as it always was.
 function teardownTrick(detach, finale) {
   if (detach) detach();
   if (finale) finale.cancel();
@@ -77,12 +89,26 @@ function nextQuestion() {
     displayName: displayNameFor(question.n, typo),
     onChoose: (choice, elapsed) => {
       commit(choice, elapsed, screen.driver);
-      teardownTrick(detach, finale);
-      // Holds the black `.option[aria-pressed="true"]` fill on screen
-      // briefly so the taker actually sees their answer register, then
-      // advances. Tracked/cancellable by screens.js — see renderQuestion's
-      // pauseThenAdvance.
-      screen.pauseThenAdvance(goNext);
+      // textSwap only (see effects.js): let the already-applied trick know
+      // the TRUE clicked index, synchronously, before deciding when to tear
+      // it down — see teardownTrick's comment above for why this can't just
+      // be immediate for this one trick.
+      detach?.notifyCommit?.(choice);
+      if (detach?.holdMs) {
+        // Extended hold (textSwap): defer teardown until after the longer
+        // pause instead of tearing down immediately.
+        screen.pauseThenAdvance(() => {
+          teardownTrick(detach, finale);
+          goNext();
+        }, detach.holdMs);
+      } else {
+        teardownTrick(detach, finale);
+        // Holds the black `.option[aria-pressed="true"]` fill on screen
+        // briefly so the taker actually sees their answer register, then
+        // advances. Tracked/cancellable by screens.js — see renderQuestion's
+        // pauseThenAdvance.
+        screen.pauseThenAdvance(goNext);
+      }
     },
     onExpire: elapsed => {
       // The instrument answers FOR the taker. MUST come from the injected
@@ -112,7 +138,11 @@ function nextQuestion() {
     // here was worse than dead code — it called commit() + pauseThenAdvance()
     // WITHOUT going through the outcome gate (createOutcomeGate in
     // screens.js), so a future trick wiring itself to it would double-commit
-    // and double-advance. src/ui/effects.js's applyTrick no longer accepts it.
+    // and double-advance. src/ui/effects.js's applyTrick still does not
+    // accept it. textSwap's `detach.notifyCommit`/`detach.holdMs` (read,
+    // not passed in, above in onChoose) is a DIFFERENT, narrower channel:
+    // purely advisory, read-only from main.js's side, and structurally
+    // unable to trigger a second commit — it cannot reopen this hazard.
     detach = applyTrick(trick, {
       optionElements: screen.optionElements,
       // Tricks that alter or swallow a click MUST go through setInterceptor —

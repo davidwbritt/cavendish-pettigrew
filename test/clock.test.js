@@ -4,13 +4,18 @@ import { readdir, readFile } from 'node:fs/promises';
 import { dirname, resolve, join } from 'node:path';
 import {
   realDurationMs, displayedRemainingMs,
-  DISPLAY_DURATION_MS, FLOOR_MS, RECOVERY_QUESTIONS
+  DISPLAY_DURATION_MS, FLOOR_MS, RECOVERY_QUESTIONS, RED_THRESHOLD_MS
 } from '../src/clock.js';
 
 const ROOT = dirname(dirname(new URL(import.meta.url).pathname));
 
-test('questions 1-10 are honest', () => {
-  for (let n = 1; n <= 10; n++) assert.equal(realDurationMs(n), DISPLAY_DURATION_MS);
+test('questions 1-5 are honest (the deposit)', () => {
+  for (let n = 1; n <= 5; n++) assert.equal(realDurationMs(n), DISPLAY_DURATION_MS);
+});
+
+test('question 6 is where the honest deposit ends', () => {
+  assert.equal(realDurationMs(5), DISPLAY_DURATION_MS);
+  assert.ok(realDurationMs(6) < DISPLAY_DURATION_MS, 'Q6 must already be rushed');
 });
 
 test('real duration never drops below the floor', () => {
@@ -58,10 +63,14 @@ test('by Q24 the face overstates remaining time at the midpoint', () => {
 test('the duration curve matches the specified table exactly', () => {
   const actual = Array.from({ length: 24 }, (_, i) => realDurationMs(i + 1));
   assert.deepEqual(actual, [
-    30000, 30000, 30000, 30000, 30000, 30000, 30000, 30000, 30000, 30000,
-    28000, 26000, 30000, 23000, 20000, 30000, 17000, 14000, 30000, 11000,
+    30000, 30000, 30000, 30000, 30000, 28000, 26000, 24000, 22000, 20000,
+    18000, 16000, 30000, 15000, 14000, 30000, 13000, 12000, 30000, 11000,
     10000, 10000, 10000, 10000
   ]);
+});
+
+test('RED_THRESHOLD_MS is exactly 10 displayed seconds', () => {
+  assert.equal(RED_THRESHOLD_MS, 10000);
 });
 
 test('the duration table and constants cannot drift apart', () => {

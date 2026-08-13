@@ -1,7 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mulberry32, pick } from '../src/rng.js';
-import { createOutcomeGate, reviewRows } from '../src/ui/screens.js';
+import {
+  createOutcomeGate, reviewRows, timerIsRed,
+  SELECTION_PAUSE_MS
+} from '../src/ui/screens.js';
+import { RED_THRESHOLD_MS } from '../src/clock.js';
+import { TEXT_SWAP_HOLD_MS } from '../src/ui/effects.js';
 import { createTranscript, recordAnswer } from '../src/transcript.js';
 
 // createOutcomeGate is the pure primitive renderQuestion (src/ui/screens.js)
@@ -34,6 +39,21 @@ test('createOutcomeGate starts unsettled and reports settled after firing', () =
   assert.equal(gate.settled, false);
   gate.fire(() => {});
   assert.equal(gate.settled, true);
+});
+
+// timerIsRed is the pure predicate tick() (renderQuestion) uses to toggle
+// the digits' red class — extracted so "red exactly under RED_THRESHOLD_MS,
+// nowhere else" is unit-testable without DOM (no jsdom in this project).
+test('timerIsRed is true strictly below RED_THRESHOLD_MS and false at or above it', () => {
+  assert.equal(timerIsRed(RED_THRESHOLD_MS + 1), false);
+  assert.equal(timerIsRed(RED_THRESHOLD_MS), false, 'exactly at the threshold is not yet red');
+  assert.equal(timerIsRed(RED_THRESHOLD_MS - 1), true);
+  assert.equal(timerIsRed(0), true);
+});
+
+test('SELECTION_PAUSE_MS is 500 and TEXT_SWAP_HOLD_MS extends only the textSwap question\'s hold', () => {
+  assert.equal(SELECTION_PAUSE_MS, 500);
+  assert.ok(TEXT_SWAP_HOLD_MS > SELECTION_PAUSE_MS, 'the extended hold must actually be longer');
 });
 
 // The forced-choice selection itself — main.js's onExpire handler calls

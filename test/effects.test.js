@@ -1,7 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mulberry32 } from '../src/rng.js';
 import { TRICK_NAMES } from '../src/tricks.js';
-import { TOUCH_SUBSTITUTIONS, effectiveTrick, applyTrick, hoverDriftTarget } from '../src/ui/effects.js';
+import {
+  TOUCH_SUBSTITUTIONS, effectiveTrick, applyTrick, hoverDriftTarget,
+  textSwapPartner, TEXT_SWAP_DELAY_MS, TEXT_SWAP_HOLD_MS
+} from '../src/ui/effects.js';
 
 test('every trick declares whether it survives on touch', () => {
   for (const name of TRICK_NAMES) {
@@ -17,15 +21,16 @@ test('cursor-dependent tricks are substituted on touch, never dropped', () => {
   }
 });
 
-test('TRICK_NAMES has 7 distinct entries and hoverDrift has a defined touch form', () => {
-  assert.equal(TRICK_NAMES.length, 7);
-  assert.equal(new Set(TRICK_NAMES).size, 7);
+test('TRICK_NAMES has 9 distinct entries and hoverDrift has a defined touch form', () => {
+  assert.equal(TRICK_NAMES.length, 9);
+  assert.equal(new Set(TRICK_NAMES).size, 9);
   assert.ok(TRICK_NAMES.includes('hoverDrift'));
   assert.ok(effectiveTrick('hoverDrift', true), 'hoverDrift must have a defined touch form');
 });
 
+
 test('pointer-agnostic tricks are unchanged on touch', () => {
-  for (const name of ['deadClick', 'ghostSelection', 'doubleMark', 'stickyAnswer']) {
+  for (const name of ['deadClick', 'ghostSelection', 'doubleMark', 'stickyAnswer', 'lockout', 'textSwap']) {
     assert.equal(effectiveTrick(name, true), name);
   }
 });
@@ -135,6 +140,22 @@ function mockOptionsWithEvents(n) {
       _fire(type) {
         for (const fn of listeners.get(type) ?? []) fn({});
       }
+    };
+  });
+}
+
+// textSwap only touches optionElements[i].querySelector('.option-text')
+// (never aria-pressed, never any other attribute — see its own comment in
+// src/ui/effects.js), so this mock exposes exactly that surface, plus a
+// setAttribute spy purely to prove textSwap never calls it.
+function mockOptionsWithText(texts) {
+  return texts.map(text => {
+    const span = { textContent: text };
+    const setAttributeCalls = [];
+    return {
+      setAttributeCalls,
+      querySelector: sel => (sel === '.option-text' ? span : null),
+      setAttribute: (...args) => setAttributeCalls.push(args)
     };
   });
 }
@@ -288,6 +309,140 @@ test('stickyAnswer never re-clears a node once the real second click has claimed
   detach();
   assert.equal(optionElements[2].getAttribute('aria-pressed'), 'true',
     'detach must not clobber a genuine selection that landed on the same node it once faked');
+});
+
+// lockout (a genuine, one-way lockout — see the CONTRACT comment in
+// src/ui/effects.js for why this deliberately reverses the escapability
+// rule): goes through the exact same structural setInterceptor hook as
+// deadClick/ghostSelection, so no DOM is needed to exercise it either.
+
+test('lockout interceptor swallows every click, unconditionally, for the rest of the question', () => {
+  let interceptor;
+  const setInterceptor = fn => { interceptor = fn; };
+  applyTrick('lockout', { optionElements: [0, 1, 2, 3], rng: () => 0, isTouch: false, setInterceptor });
+  for (const i of [0, 1, 2, 3, 0, 2, 1, 3, 0, 3]) {
+    assert.equal(interceptor(i), null, `click on option ${i} must be swallowed`);
+  }
+});
+
+test('lockout degrades to a no-op when setInterceptor is not supplied', () => {
+  assert.doesNotThrow(() => {
+    const detach = applyTrick('lockout', { optionElements: [0, 1, 2, 3], rng: () => 0, isTouch: false });
+    detach();
+  });
+});
+
+test('detach() clears the lockout interceptor too', () => {
+  let interceptor = 'unset';
+  const setInterceptor = fn => { interceptor = fn; };
+  const detach = applyTrick('lockout', { optionElements: [0, 1, 2, 3], rng: () => 0, isTouch: false, setInterceptor });
+  assert.equal(typeof interceptor, 'function');
+  detach();
+  assert.equal(interceptor, null);
+});
+
+// textSwap — purely visual, never routed through setInterceptor. Exercised
+// via applyTrick's own returned `notifyCommit`/`holdMs` contract (see
+// effects.js's own comment on the trick for why main.js needs exactly this
+// shape) rather than any DOM click dispatch.
+
+test('textSwapPartner returns a valid, in-range index that is never the selected index', () => {
+  const rng = mulberry32(1);
+  for (let length = 2; length <= 6; length++) {
+    for (let i = 0; i < length; i++) {
+      const p = textSwapPartner(i, length, rng);
+      assert.ok(Number.isInteger(p) && p >= 0 && p < length, `out of range for i=${i}, length=${length}`);
+      assert.notEqual(p, i, `partner must never equal the selected index (i=${i}, length=${length})`);
+    }
+  }
+});
+
+test('textSwap never installs an interceptor', () => {
+  let interceptorInstalled = false;
+  const setInterceptor = () => { interceptorInstalled = true; };
+  const optionElements = mockOptionsWithText(['A', 'B', 'C', 'D']);
+  const detach = applyTrick('textSwap', { optionElements, rng: () => 0, isTouch: false, setInterceptor });
+  assert.equal(interceptorInstalled, false, 'textSwap must never call setInterceptor');
+  detach();
+});
+
+test('textSwap exposes notifyCommit and holdMs on the returned cleanup function, and no other trick does', () => {
+  const optionElements = mockOptionsWithText(['A', 'B', 'C', 'D']);
+  const detach = applyTrick('textSwap', { optionElements, rng: () => 0, isTouch: false });
+  assert.equal(typeof detach.notifyCommit, 'function');
+  assert.equal(detach.holdMs, TEXT_SWAP_HOLD_MS);
+  detach();
+
+  const other = applyTrick('deadClick', { optionElements: mockOptionsWithText(['A', 'B', 'C', 'D']), rng: () => 0, isTouch: false });
+  assert.equal(other.notifyCommit, undefined);
+  assert.equal(other.holdMs, undefined);
+  other();
+});
+
+const TEXTS = ['Alpha', 'Bravo', 'Charlie', 'Delta'];
+
+test('textSwap genuinely swaps the selected option\'s text with its partner\'s, ~TEXT_SWAP_DELAY_MS after notifyCommit', async () => {
+  const optionElements = mockOptionsWithText(TEXTS);
+  const rng = () => 0; // deterministic partner pick
+  const partner = textSwapPartner(1, 4, rng); // must match what the trick itself computes
+  const detach = applyTrick('textSwap', { optionElements, rng, isTouch: false });
+
+  detach.notifyCommit(1); // taker clicked option 1 ("Bravo")
+  // Not yet — the swap is deliberately delayed so the taker sees their
+  // correct choice first.
+  assert.equal(optionElements[1].querySelector('.option-text').textContent, 'Bravo');
+
+  await new Promise(resolve => setTimeout(resolve, TEXT_SWAP_DELAY_MS + 50));
+
+  assert.equal(optionElements[1].querySelector('.option-text').textContent, TEXTS[partner],
+    'the selected option now shows its partner\'s original text');
+  assert.equal(optionElements[partner].querySelector('.option-text').textContent, TEXTS[1],
+    'the partner now shows the selected option\'s original text — a genuine swap, not a one-way overwrite');
+  // No duplicate text anywhere.
+  const shown = optionElements.map(o => o.querySelector('.option-text').textContent);
+  assert.equal(new Set(shown).size, shown.length, 'no duplicate text across options after the swap');
+
+  detach();
+});
+
+test('textSwap restores both options\' original text on detach()', async () => {
+  const optionElements = mockOptionsWithText(TEXTS);
+  const rng = () => 0;
+  const partner = textSwapPartner(1, 4, rng);
+  const detach = applyTrick('textSwap', { optionElements, rng, isTouch: false });
+
+  detach.notifyCommit(1);
+  await new Promise(resolve => setTimeout(resolve, TEXT_SWAP_DELAY_MS + 50));
+  assert.equal(optionElements[1].querySelector('.option-text').textContent, TEXTS[partner], 'sanity: swap applied');
+
+  detach();
+  assert.equal(optionElements[1].querySelector('.option-text').textContent, TEXTS[1],
+    'the selected option\'s text must be restored');
+  assert.equal(optionElements[partner].querySelector('.option-text').textContent, TEXTS[partner],
+    'the partner option\'s text must be restored');
+});
+
+test('textSwap detach() before the swap timer fires cancels it (never fires against a later question)', async () => {
+  const optionElements = mockOptionsWithText(['Alpha', 'Bravo', 'Charlie', 'Delta']);
+  const detach = applyTrick('textSwap', { optionElements, rng: () => 0, isTouch: false });
+
+  detach.notifyCommit(1);
+  detach(); // torn down immediately, well before TEXT_SWAP_DELAY_MS elapses
+
+  await new Promise(resolve => setTimeout(resolve, TEXT_SWAP_DELAY_MS + 50));
+  assert.equal(optionElements[1].querySelector('.option-text').textContent, 'Bravo',
+    'a cancelled timer must never mutate text later');
+});
+
+test('textSwap never touches aria-pressed', async () => {
+  const optionElements = mockOptionsWithText(['Alpha', 'Bravo', 'Charlie', 'Delta']);
+  const detach = applyTrick('textSwap', { optionElements, rng: () => 0, isTouch: false });
+  detach.notifyCommit(1);
+  await new Promise(resolve => setTimeout(resolve, TEXT_SWAP_DELAY_MS + 50));
+  for (const opt of optionElements) {
+    assert.equal(opt.setAttributeCalls.length, 0, 'textSwap must never call setAttribute');
+  }
+  detach();
 });
 
 test('doubleMark never re-clears the real node once the real second click has claimed it, but still clears its ghost', () => {

@@ -59,8 +59,12 @@ Single HTML file, no dependencies, no network, no build step — house style.
 
 ### Q1–10 — The Deposit
 
-Scrupulously fair. Real instruments, honest 30-second clock, **no tricks
-whatsoever**. This is the trust deposit that everything later spends.
+Scrupulously fair on tricks, honest on timing only through Q5. **No tricks
+whatsoever** run before Q11 — that part of the deposit still runs the full
+ten questions. But the honest 30-second clock now covers only Q1–5; Q6–10
+already begin the real-duration rush described in §4, quietly, before the
+trick bag itself has opened. This is the trust deposit that everything later
+spends.
 
 Composition: 3 cognitive-reflection items · 3 formal syllogisms in real English ·
 2 sequence · 2 spatial.
@@ -110,20 +114,31 @@ Real wall-clock duration by question:
 
 | Questions | Real duration |
 |---|---|
-| Q1–10 | 30s — honest |
-| Q11, Q12 | 28s, 26s |
+| Q1–5 | 30s — honest |
+| Q6–10 | 28s, 26s, 24s, 22s, 20s |
+| Q11, Q12 | 18s, 16s |
 | **Q13** | **30s — recovery, honest** |
-| Q14, Q15 | 23s, 20s |
+| Q14, Q15 | 15s, 14s |
 | **Q16** | **30s — recovery, honest** |
-| Q17, Q18 | 17s, 14s |
+| Q17, Q18 | 13s, 12s |
 | **Q19** | **30s — recovery, honest** |
 | Q20 | 11s |
 | Q21–24 | 10s — floor |
 
 **Hard floor of 10 seconds.** Never lower, at any index, under any condition.
+The honest deposit was retuned to end at Q5 rather than Q10 — the rush now
+starts one full act earlier, quietly, while the trick bag itself still waits
+until Q11 (see §3 and §5).
 
 Expiry auto-submits whatever is currently highlighted. Displayed digits and the
 depletion rule are both driven from the same fake clock.
+
+**Below 10 displayed seconds, the timer digits render in the correction red**
+(`--red`, the same token as everything else saturated in this document — see
+§9). Digits only; the hairline depletion bar is deliberately left alone, and
+there is no transition or flash — the colour simply changes on the tick that
+crosses the threshold. Purely typographic, and it never fires early: a fresh
+question's `0:30` never inherits red from the question before it.
 
 By Q24 the taker receives a third of the time the instrument claims to have
 given them, fails accordingly, and concludes that they are slowing down. The
@@ -133,7 +148,7 @@ certificate later confirms this.
 
 ## 5. The trick bag
 
-Nothing fires before Q11.
+Nothing fires before Q11. Nine named tricks; seven fire per run (`TRICK_COUNT`).
 
 ### Pointer/mouse tricks
 
@@ -145,23 +160,53 @@ Nothing fires before Q11.
 | Button flinch | Option shifts ~3px on mousedown, so the click lands in the gap. |
 | Sticky answer | Selection quietly reverts to the previous choice after ~1s. |
 | Phantom lock | An option greys out as "already selected" as the taker reaches it. |
+| **Lockout** | **No option responds at all for the rest of the question. The timer expiring is the only resolution — see below.** |
+| **Text swap** | **After the taker commits, their chosen option's text swaps with another option's, ~150ms into the post-selection hold.** |
 
 ### Touch variants
 
 Button flinch and phantom lock have no meaning without a cursor. Touch requires
 its own equivalents — a tap that lands as a scroll, a selection requiring a
 firmer or longer press. Mobile is in scope (both prior arcade titles shipped to
-itch mobile), so these are not optional.
+itch mobile), so these are not optional. Lockout is pointer-agnostic (a
+swallowed click is a swallowed tap) and text swap is purely visual — both are
+identical on touch, unlike the two above them.
 
 ### Scheduling invariants
 
 1. Nothing before Q11.
 2. **Never on a recovery question** (Q13/Q16/Q19) — sabotaging one wastes it.
 3. Maximum one trick per question.
-4. Never two consecutive questions.
+4. **Never two consecutive questions below Q17.** From Q17 onward, consecutive
+   placements are allowed. This was relaxed specifically to make `TRICK_COUNT`
+   7 achievable: the eligible slots are `[11, 12, 14, 15, 17, 18, 20, 21, 22]`,
+   and with the old blanket non-adjacency rule the true maximum was 5 (one per
+   adjacent pair). Below Q17, {11,12} and {14,15} still each contribute at
+   most one slot — 2 early, maximum. From Q17 the five late slots
+   (17,18,20,21,22) are always available together — 5 late. 2 + 5 = 7,
+   exactly `TRICK_COUNT`, so every valid schedule fills every late slot on
+   every run; only which trick lands on each varies. Accepted, not a bug.
 5. Never the same trick twice in succession.
-6. **Every trick is escapable.** The taker can always reach and set their
-   intended answer before submission.
+6. **Every trick except lockout is escapable.** The taker can always reach
+   and set their intended answer before submission.
+7. **At most one lockout per run.** Enforced in the scheduler.
+
+### Lockout — the one trick that isn't escapable
+
+Genuinely locks the options: nothing commits, for the rest of the question,
+for mouse, touch, or keyboard alike. This reverses invariant 6 above, and is
+safe only because of the timeout rewrite that already changed what expiry
+does: expiry used to record a blank answer, which would have made an
+unescapable lockout a true dead end. Now expiry always picks an answer (the
+injected seeded rng) and the review sheet brands the row REFUSED — so a
+lockout simply resolves into the instrument answering on the taker's behalf,
+same as any other timeout, just guaranteed rather than possible. It is never
+scheduled on a recovery question or Q23 (both already excluded from the
+eligible slots, where the timer cannot be frozen — the only timer freeze in
+the piece is the Q23 finale's, and Q23 never carries a trick), and at most
+one lockout ever fires per run, so the taker is never forced twice. No
+visual announcement: the options still show their normal hover affordance,
+which is what makes it crueller — they simply do nothing.
 
 ### Q23 — the finale
 

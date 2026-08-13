@@ -4,12 +4,31 @@
 // clicks. Every effect here must remain deniable as "I misclicked" — never
 // obviously the software cheating.
 //
-// CONTRACT: every effect below must leave a route to the intended answer —
-// spec §5, scheduling invariant 6. Enforced by construction: each effect
-// either delays input, reroutes it via a bounded interceptor swallow, or
-// intercepts it through a bounded counter, but never removes the option or
-// traps the taker indefinitely. An uncorrectable wrong answer produces
-// rage; a correctable one produces self-doubt, which is the entire point.
+// CONTRACT: every effect below except `lockout` must leave a route to the
+// intended answer — spec §5, scheduling invariant 6. Enforced by
+// construction: each effect either delays input, reroutes it via a bounded
+// interceptor swallow, or intercepts it through a bounded counter, but never
+// removes the option or traps the taker indefinitely. An uncorrectable
+// wrong answer produces rage; a correctable one produces self-doubt, which
+// is the entire point.
+//
+// `lockout` DELIBERATELY REVERSES this rule: while it is active, no click
+// (mouse, touch, or keyboard activation) ever commits, for the rest of the
+// question — there is no route to the intended answer, correctable or
+// otherwise. This used to be a hard no: a timeout used to record a blank
+// answer, so an unescapable lockout would have been a dead end with no
+// resolution at all. That is no longer true — expiry now picks an answer
+// (main.js's onExpire, via the injected seeded rng) and the review sheet
+// brands the row REFUSED — so a lockout simply resolves into the instrument
+// answering on the taker's behalf instead of stranding them. It is safe
+// specifically BECAUSE the timer is what rescues the taker: lockout is never
+// scheduled on a recovery question or Q23 (both already excluded from
+// eligibleQuestions() in src/tricks.js, where nothing can freeze the timer
+// — the only timer freeze in this project is the Q23 finale's, and Q23
+// never carries a trick), and at most one lockout is scheduled per run (see
+// src/tricks.js's scheduleTricks), so a taker is never forced twice. This is
+// an intentional contract change, not a regression — do not "fix" it back
+// toward escapability.
 //
 // INTERCEPTION: screens.js registers the real option onclick at render
 // time; applyTrick runs afterwards and can only attach LATER listeners.
@@ -23,7 +42,11 @@
 // the click (no selection, no commit) or an option index to proceed with
 // (the original index, or a remapped one). If setInterceptor is not
 // supplied, all four of these tricks degrade to no-ops rather than
-// throwing.
+// throwing. `lockout` uses the exact same structural hook: its interceptor
+// always returns null, so nothing it does needs a plain click listener
+// either. `textSwap` is the one exception in the whole module: it never
+// alters or swallows a click (see its own comment below), so it
+// deliberately does NOT use setInterceptor at all.
 //
 // HISTORICAL BUG (fix round 1, Task 15 review): doubleMark and stickyAnswer
 // originally acted via a plain click listener registered AFTER screens.js's
@@ -40,15 +63,18 @@
 // the taker's first click (so there is a screen left to act on), fake a
 // selection, then let the second click commit for real.
 //
-// TIMER HAZARD: doubleMark, buttonFlinch, stickyAnswer and phantomLock all
-// schedule setTimeout callbacks. Removing an event listener does NOT cancel
-// an already-scheduled timeout — if a question expires and the UI advances
-// before one of those timers fires, the callback would run against the
-// wrong, already-advanced question. To close that hole, every setTimeout in
-// this module is created through `schedule()` below, and detach() clears
-// every outstanding id. detach() also undoes any inline style, class or
-// attribute an effect applied, and clears any interceptor it installed, so
-// nothing it touched survives teardown.
+// TIMER HAZARD: doubleMark, buttonFlinch, stickyAnswer, phantomLock and
+// textSwap all schedule setTimeout callbacks. Removing an event listener
+// does NOT cancel an already-scheduled timeout — if a question expires and
+// the UI advances before one of those timers fires, the callback would run
+// against the wrong, already-advanced question. To close that hole, every
+// setTimeout in this module is created through `schedule()` below, and
+// detach() clears every outstanding id. detach() also undoes any inline
+// style, class or attribute an effect applied, and clears any interceptor
+// it installed, so nothing it touched survives teardown. textSwap's own
+// timer needs to survive PAST commit to fire at all — see its own comment
+// below and main.js's onChoose for how that's done without ever letting the
+// callback run against a later question.
 
 // Touch has no hover and no cursor, so flinch, phantom-lock and hoverDrift
 // are replaced rather than skipped — mobile takers must meet the same
@@ -60,7 +86,9 @@ export const TOUCH_SUBSTITUTIONS = {
   stickyAnswer: 'stickyAnswer',
   buttonFlinch: 'scrollSteal',     // the tap is consumed as a scroll gesture
   phantomLock: 'firmPress',        // the option demands a longer press
-  hoverDrift: 'hoverDriftTouch'    // the pressed highlight shows on the neighbour instead
+  hoverDrift: 'hoverDriftTouch',   // the pressed highlight shows on the neighbour instead
+  lockout: 'lockout',              // pointer-agnostic: a swallowed click is a swallowed tap
+  textSwap: 'textSwap'             // purely visual, identical on any pointer type
 };
 
 export function effectiveTrick(name, isTouch) {
@@ -74,10 +102,40 @@ export function hoverDriftTarget(hoveredIndex, length) {
   return (hoveredIndex + 1) % length;
 }
 
+// Pure mapping used by the textSwap trick below, and unit-tested directly
+// without any DOM: for any length >= 2 and any in-range selectedIndex, this
+// always returns a valid, in-range, DIFFERENT index — the partner whose
+// text gets swapped with the selected option's.
+export function textSwapPartner(selectedIndex, length, rng) {
+  const others = [];
+  for (let i = 0; i < length; i++) if (i !== selectedIndex) others.push(i);
+  return others[Math.floor(rng() * others.length)];
+}
+
+// How long after commit the swap fires — long enough that the taker
+// registers their correct choice first (the black fill lands immediately on
+// commit), short enough to land well inside TEXT_SWAP_HOLD_MS below.
+export const TEXT_SWAP_DELAY_MS = 150;
+
+// This one question's post-selection hold, extended from
+// screens.js's default SELECTION_PAUSE_MS so the swapped text is actually
+// readable before the screen advances. See main.js's onChoose, which reads
+// this off the returned cleanup function's `.holdMs` (set below) to decide
+// how long to hold this particular question.
+export const TEXT_SWAP_HOLD_MS = 900;
+
 export function applyTrick(name, { optionElements, rng, isTouch = false, setInterceptor }) {
   const trick = effectiveTrick(name, isTouch);
   const cleanups = [];
   const timers = new Set();
+  // Set only by textSwap below. Attached to the returned cleanup function
+  // (not called here) so main.js can invoke it synchronously at the exact
+  // moment of commit — see textSwap's own comment for why that timing
+  // matters and why this can't just be a normal click listener.
+  let notifyCommit = null;
+  // Set only by textSwap below: overrides how long main.js holds this
+  // question before advancing (see screens.js's pauseThenAdvance).
+  let holdMs = null;
 
   // Every setTimeout in this module goes through here so detach() can
   // guarantee that no scheduled callback ever runs after teardown.
@@ -262,6 +320,73 @@ export function applyTrick(name, { optionElements, rng, isTouch = false, setInte
     }, { passive: false });
   }
 
+  if (trick === 'lockout') {
+    // A genuine lockout: every click is swallowed, unconditionally, for the
+    // rest of the question — see the module-level CONTRACT comment above
+    // for why this is safe now (expiry forces an answer and brands the row
+    // REFUSED, rather than leaving a blank). Returning null from the
+    // interceptor is what blocks BOTH mouse/touch clicks AND keyboard
+    // activation: a focused <button>'s Enter/Space press dispatches a
+    // native 'click' event exactly like a pointer click, and that's the
+    // same event screens.js's onclick — and therefore this interceptor —
+    // consults. There is deliberately no visual change here: no class, no
+    // style, no attribute. Hover/focus-visible affordance (index.html's
+    // `.option:hover` rule) is untouched, so the options still LOOK
+    // responsive; they simply never commit. Nothing to revert on detach()
+    // beyond clearing the interceptor itself, which the shared return below
+    // already does for every trick.
+    setInterceptor?.(() => null);
+  }
+
+  if (trick === 'textSwap') {
+    // Purely visual, and the ONE trick in this module that never touches
+    // setInterceptor and never alters what actually commits — the taker's
+    // real click always goes straight to screens.js's own onclick, exactly
+    // as if no trick were scheduled at all. The transcript therefore always
+    // records the TRUE clicked index; only the on-screen TEXT of two
+    // options changes, after the fact, during the post-selection hold.
+    //
+    // Detection problem this solves: applyTrick runs once, at question
+    // render time, before any click exists to react to — and by the time a
+    // real click DOES commit, main.js's teardownTrick() calls this trick's
+    // own detach() SYNCHRONOUSLY, in the same tick, which would cancel any
+    // schedule()'d timer before it could ever fire (the exact HISTORICAL
+    // BUG class documented above, just one step later in the sequence).
+    // main.js closes that gap for this one trick alone: it calls
+    // `detach.notifyCommit(index)` — a property attached to the returned
+    // cleanup function below, present ONLY for this trick — synchronously
+    // at the moment of commit but BEFORE deciding when to call detach()
+    // itself, and defers detach() until after `detach.holdMs` (also
+    // attached below) has elapsed instead of calling it immediately. See
+    // main.js's onChoose for the other half of this contract, and its
+    // updated hard-requirement comment for why deferring ONLY this trick's
+    // teardown, and ONLY within the current, already-decided question,
+    // does not reopen the historical bug.
+    let applied = null; // { i, j, iText, jText } once the swap has actually happened — restored on detach()
+    notifyCommit = (index) => {
+      schedule(() => {
+        const other = textSwapPartner(index, optionElements.length, rng);
+        const a = optionElements[index].querySelector('.option-text');
+        const b = optionElements[other].querySelector('.option-text');
+        const iText = a.textContent;
+        const jText = b.textContent;
+        // A genuine swap (not a one-way overwrite) — neither text is lost,
+        // and no duplicate text ever appears across the two options.
+        a.textContent = jText;
+        b.textContent = iText;
+        applied = { i: index, j: other, iText, jText };
+      }, TEXT_SWAP_DELAY_MS);
+    };
+    holdMs = TEXT_SWAP_HOLD_MS;
+    cleanups.push(() => {
+      if (applied) {
+        optionElements[applied.i].querySelector('.option-text').textContent = applied.iText;
+        optionElements[applied.j].querySelector('.option-text').textContent = applied.jText;
+        applied = null;
+      }
+    });
+  }
+
   if (trick === 'hoverDrift') {
     // Hovering option i lights (i + 1) % length instead — the option
     // actually under the cursor never lights. THE CLICK IS HONEST: unlike
@@ -321,10 +446,16 @@ export function applyTrick(name, { optionElements, rng, isTouch = false, setInte
     }
   }
 
-  return () => {
+  const cleanup = () => {
     for (const fn of cleanups) fn();
     for (const id of timers) clearTimeout(id);
     timers.clear();
     setInterceptor?.(null);
   };
+  // Optional extras, present only for textSwap — every other trick leaves
+  // both undefined, so `detach?.notifyCommit?.(...)` / `detach?.holdMs` in
+  // main.js are no-ops for them.
+  if (notifyCommit) cleanup.notifyCommit = notifyCommit;
+  if (holdMs) cleanup.holdMs = holdMs;
+  return cleanup;
 }
