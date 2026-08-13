@@ -61,6 +61,10 @@ body::before, body::after {
 }
 body::before { top: 14px; left: 14px; border-width: 1px 0 0 1px; }
 body::after { bottom: 14px; right: 14px; border-width: 0 1px 1px 0; }
+.option.phantom-locked { opacity: .45; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .option { transform: none !important; }
+}
 </style>
 </head>
 <body>
