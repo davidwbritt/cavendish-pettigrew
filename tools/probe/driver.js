@@ -56,8 +56,8 @@
     {
       const body = document.body.innerText || '';
       // The instruction that is not true. There is no skip control anywhere.
-      log('landing: skip instruction present? ' + body.includes('leave an item unanswered and proceed'));
-      log('landing: thirty-second promise present? ' + body.includes('presented for thirty seconds'));
+      log('landing: SKIP control promised? ' + body.includes('the SKIP control advances to the next item'));
+      log('landing: thirty-second promise present (undefended)? ' + body.includes('An ample thirty seconds is allowed for each item'));
       log('landing: any skip/pass control rendered? '
         + $$('button').map(b => b.textContent.trim()).join('|'));
     }
@@ -78,6 +78,8 @@
     const tallyEvidence = [];
     // Questions on which the refusal notice was observed at any point, by
     // any polling loop. Shared so no single loop has to be the one looking.
+    const skipHunted = new Set();
+    const skipControlsFound = [];
     const refusalSeen = new Set();
     const noteRefusal = n => {
       if (!refusalSeen.has(n) && (document.body.innerText || '').includes('DECLINED TO ANSWER')) {
@@ -97,6 +99,18 @@
 
       const opts = $$('.option');
       if (!opts.length) { log(`FATAL: Q${n} rendered no options`); break; }
+
+      // The landing screen promises a SKIP control. There must never be one:
+      // if a well-meaning future change adds any skip/pass/next affordance,
+      // the central gag of the descent quietly dies and nothing else would
+      // catch it.
+      if (!skipHunted.has(n)) {
+        skipHunted.add(n);
+        const controls = $$('button, a, [role="button"]')
+          .map(e => (e.textContent || '').trim())
+          .filter(t => /skip|pass|next|advance/i.test(t));
+        if (controls.length) skipControlsFound.push({ n, controls });
+      }
 
       // Deliberately let a couple of questions run out, to exercise the
       // forced-answer path. Never click these.
@@ -186,6 +200,8 @@
       }
     }
 
+    log('skip/pass/next controls found on any question screen = '
+      + JSON.stringify(skipControlsFound) + ' (expect [] — the promise is a lie)');
     log('questions LOCKED OUT (timer rescued): ' + JSON.stringify(lockedOut));
     log('clicks per question: ' + JSON.stringify(clicksPerQuestion));
     log('questions where the black selection hold was observed mid-pause: ' + JSON.stringify(holdEvidence));

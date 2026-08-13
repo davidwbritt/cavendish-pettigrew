@@ -81,21 +81,36 @@ export function renderLanding(root, onStart) {
     // right, and finds the record already altered.
     el('p', { text: 'This inventory comprises twenty-four items, administered under standard conditions and normed against the Form 4-B standardisation sample. Items are presented singly. A full transcript is presented for review before the assessment is finalised, and any answer may be corrected at that stage.' }),
 
-    // Naming thirty seconds explicitly turns the timer into a STATED
-    // PROMISE rather than an assumption, which is what the debrief later
-    // collects on ("The timer always showed thirty seconds. It did not
-    // always give you thirty seconds"). It also licenses the taker to blame
-    // their own pace for the rush that begins at Q6.
-    el('p', { text: 'Each item is presented for thirty seconds. The interval is fixed and uniform throughout the instrument. Response latency is recorded against it and contributes to the reflective indices, so answer promptly rather than deliberating at length.' }),
+    // Naming thirty seconds turns the timer into a STATED PROMISE rather
+    // than an assumption, which is what the debrief later collects on ("The
+    // timer always showed thirty seconds. It did not always give you thirty
+    // seconds"). "Ample" is institutional self-congratulation, in character
+    // and quietly useful: it frames thirty seconds as generous, so a taker
+    // who feels rushed from Q6 blames their own pace rather than the clock.
+    //
+    // It does NOT claim the interval is fixed, uniform or fair. An earlier
+    // draft did, and that was showing our hand — a real form has no reason
+    // to insist its timer is consistent, so insisting flags the one thing
+    // the instrument most needs left unexamined. Stating the duration is a
+    // promise worth making; defending it is an invitation to check.
+    el('p', { text: 'An ample thirty seconds is allowed for each item. Response latency is recorded and contributes to the reflective indices, so answer promptly rather than deliberating at length.' }),
 
     // THE LIE, isolated in its own short paragraph so it is actually read.
-    // There is no skip control anywhere in the instrument and never was.
-    // A taker who takes this at its word and lets an item run out is met
-    // with SUBJECT DECLINED TO ANSWER — REFUSALS ARE NOTED (see
-    // FORCED_ANSWER_TEXT above), and the review sheet brands the row
-    // REFUSED permanently. The instruction is not softened anywhere later,
-    // and the instrument never acknowledges the contradiction.
-    el('p', { text: 'You may leave an item unanswered and proceed. Unanswered items are weighted neutrally and are not held against the subject.' }),
+    //
+    // It NAMES A CONTROL. An earlier version said only that an item could be
+    // left unanswered, which a taker could read as a passive option and
+    // forget. "The SKIP control" is a specific affordance, described
+    // precisely enough to look for — so the taker who hits an item they
+    // cannot do goes hunting the screen for a button that has never existed,
+    // and finds four options, a timer, and nothing else. The search is the
+    // gag; the sentence is only its setup.
+    //
+    // Deliberately not softened anywhere later. A taker who waits for the
+    // timer instead is met with SUBJECT DECLINED TO ANSWER — REFUSALS ARE
+    // NOTED (FORCED_ANSWER_TEXT above), flatly contradicting "not held
+    // against the subject", and the review sheet brands the row REFUSED for
+    // good. The instrument never acknowledges any of it.
+    el('p', { text: 'If an item cannot be answered, the SKIP control advances to the next item without recording a response. Skipped items are weighted neutrally and are not held against the subject.' }),
 
     el('p', { text: 'Do not use paper, calculators or reference material. Assistance from another person invalidates the administration.' }),
 
