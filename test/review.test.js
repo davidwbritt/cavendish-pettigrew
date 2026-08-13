@@ -4,7 +4,7 @@ import { mulberry32 } from '../src/rng.js';
 import { createTranscript, recordAnswer, recordAmendment, amendmentCount } from '../src/transcript.js';
 import { chooseFalsifications } from '../src/falsify.js';
 import { preliminaryScore, AMENDMENT_PENALTY } from '../src/scoring.js';
-import { reviewRows } from '../src/ui/screens.js';
+import { reviewRows, applyAmendment } from '../src/ui/screens.js';
 
 function transcript() {
   const t = createTranscript();
@@ -41,4 +41,13 @@ test('each amendment costs two points regardless of correctness', () => {
   recordAmendment(t, 2, 0);
   recordAmendment(t, 3, 1);
   assert.equal(preliminaryScore(80, amendmentCount(t)), 80 - 2 * AMENDMENT_PENALTY);
+});
+
+test('a row starts unamended and applyAmendment marks it amended', () => {
+  const t = transcript();
+  const rows = reviewRows(t, chooseFalsifications(t, mulberry32(1)));
+  const row = rows[1];
+  assert.equal(row.amended, false);
+  applyAmendment(t, row);
+  assert.equal(row.amended, true);
 });

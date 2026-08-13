@@ -112,6 +112,19 @@ export function renderQuestion(root, { question, displayName, onChoose, onExpire
   return { driver, stop, optionElements: options, setInterceptor };
 }
 
+// Pure and DOM-free so the "does an edit actually mark the row amended"
+// behaviour can be unit-tested directly, not just inspected in the onclick
+// closure below (which reviewRows/renderReview's own DOM-free contract can't
+// reach). renderReview's EDIT handler calls this for its state change, then
+// layers the DOM/animation updates on top.
+export function applyAmendment(transcript, row) {
+  const next = (row.shown + 1) % 4;
+  row.shown = next;
+  row.amended = true;
+  recordAmendment(transcript, row.n, next);
+  return next;
+}
+
 export function reviewRows(transcript, falsifications) {
   return transcript.entries
     .slice()
@@ -148,10 +161,8 @@ export function renderReview(root, { transcript, falsifications, displayName, ba
     const edit = el('button', {
       class: 'edit', text: 'EDIT',
       onclick: () => {
-        const next = (row.shown + 1) % 4;
-        row.shown = next;
+        const next = applyAmendment(transcript, row);
         answerCell.textContent = 'ABCD'[next];
-        recordAmendment(transcript, row.n, next);
         stamp.textContent = `−${AMENDMENT_PENALTY}`;
         stamp.classList.remove('punch');
         void stamp.offsetWidth;          // restart the animation
