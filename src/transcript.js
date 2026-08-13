@@ -1,5 +1,16 @@
 export function createTranscript() {
-  return { entries: [], amendments: [], telemetry: { freezePointerDistance: 0 } };
+  // composureAssessed starts false and is only ever flipped to true by the
+  // Q23 finale actually completing its freeze phase (src/ui/cursor.js's
+  // runFinale, wired in main.js). A taker under prefers-reduced-motion or on
+  // a coarse pointer skips the finale via shouldRunFinale(), so their
+  // freezePointerDistance stays at its default 0 too — without this separate
+  // flag that reads as "held perfectly still", scoring a suspicious perfect
+  // COMPOSURE. See src/scoring.js's composureAssessed() and src/report.js's
+  // certificate-level suppression.
+  return {
+    entries: [], amendments: [],
+    telemetry: { freezePointerDistance: 0, composureAssessed: false }
+  };
 }
 
 export function entryFor(t, n) {

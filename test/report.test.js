@@ -88,3 +88,59 @@ test('observations report discomfort when rows were amended', () => {
   });
   assert.ok(r.observations.some(o => o.includes('POST-HOC REVISION ATTEMPTS: 3')));
 });
+
+test('composure defaults to fully reported when composureAssessed is omitted', () => {
+  const r = build(1);
+  const composure = r.interpretation.find(p => p.facultyKey === 'composure');
+  assert.equal(composure.score, faculties.composure);
+  assert.ok(composure.paragraph.includes(`recorded at ${faculties.composure}`));
+});
+
+test('composure is suppressed with a clinical note when the finale never ran', () => {
+  for (let s = 0; s < 20; s++) {
+    const r = buildReport({
+      faculties, centile: 94, classification: 'PROFILE 4-B — DEFERRED ANALYTIC',
+      displayName: 'DAVDI', amendmentCount: 0, rng: mulberry32(s),
+      composureAssessed: false
+    });
+    const composure = r.interpretation.find(p => p.facultyKey === 'composure');
+    assert.equal(composure.score, null, 'no numeric score should be reported');
+    assert.ok(
+      composure.paragraph.includes('not assessed under modified administration conditions'),
+      `got "${composure.paragraph}"`
+    );
+    assert.ok(!composure.paragraph.includes(String(faculties.composure)),
+      'the suppressed paragraph must not leak the unmeasured number');
+  }
+});
+
+test('suppressing composure does not disturb any other faculty\'s paragraph or the closer', () => {
+  for (let s = 0; s < 30; s++) {
+    const assessed = buildReport({
+      faculties, centile: 94, classification: 'X', displayName: 'D',
+      amendmentCount: 0, rng: mulberry32(s), composureAssessed: true
+    });
+    const suppressed = buildReport({
+      faculties, centile: 94, classification: 'X', displayName: 'D',
+      amendmentCount: 0, rng: mulberry32(s), composureAssessed: false
+    });
+    for (const f of FACULTIES) {
+      if (f.key === 'composure') continue;
+      const a = assessed.interpretation.find(p => p.facultyKey === f.key);
+      const b = suppressed.interpretation.find(p => p.facultyKey === f.key);
+      assert.equal(a.paragraph, b.paragraph, `${f.key} paragraph diverged at seed ${s}`);
+    }
+    assert.equal(assessed.closer, suppressed.closer, `closer diverged at seed ${s}`);
+  }
+});
+
+test('suppressed composure still yields exactly one interpretation paragraph per faculty, no "undefined"', () => {
+  for (let s = 0; s < 50; s++) {
+    const r = buildReport({
+      faculties, centile: 94, classification: 'X', displayName: 'D',
+      amendmentCount: 0, rng: mulberry32(s), composureAssessed: false
+    });
+    assert.equal(r.interpretation.length, FACULTIES.length);
+    for (const p of r.interpretation) assert.ok(!p.paragraph.includes('undefined'));
+  }
+});

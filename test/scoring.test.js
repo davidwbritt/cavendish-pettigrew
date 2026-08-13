@@ -5,7 +5,7 @@ import { createTranscript, recordAnswer, recordAmendment } from '../src/transcri
 import { questionByNumber } from '../src/questions.js';
 import {
   FACULTIES, computeFaculties, headlineCentile, classify,
-  AMENDMENT_PENALTY, preliminaryScore, SCORE_FLOOR
+  AMENDMENT_PENALTY, preliminaryScore, SCORE_FLOOR, composureAssessed
 } from '../src/scoring.js';
 
 function transcript() {
@@ -146,6 +146,22 @@ test('premiseTolerance on partial transcript reflects only questions in transcri
   // premiseTolerance = 3/11 * 100 = 27.27... ≈ 27
   assert.equal(scores.premiseTolerance, 27,
     'partial engagement: 3 answered out of 11 total nonsense questions');
+});
+
+test('composureAssessed is false for a fresh transcript (finale never ran)', () => {
+  assert.equal(composureAssessed(createTranscript()), false);
+});
+
+test('composureAssessed reflects the telemetry flag, not the distance value', () => {
+  const t = createTranscript();
+  // A taker who genuinely held perfectly still during a real finale would
+  // have freezePointerDistance === 0 too — composureAssessed must not be
+  // inferred from the distance being zero, or an actually-still taker would
+  // be indistinguishable from one who never had the finale run at all.
+  t.telemetry.freezePointerDistance = 0;
+  assert.equal(composureAssessed(t), false, 'distance alone does not imply assessment');
+  t.telemetry.composureAssessed = true;
+  assert.equal(composureAssessed(t), true);
 });
 
 test('setShiftingCost returns valid integer when denominator guard applies', () => {

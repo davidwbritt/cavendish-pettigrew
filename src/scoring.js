@@ -65,7 +65,11 @@ export function computeFaculties(t, falsifications = []) {
   const changes = t.entries.reduce((s, e) => s + e.changes, 0);
   const responseConsistency = clamp(100 - (changes * 4) - (amendmentCount(t) * 9));
 
-  // Panic during the Q23 freeze. Measured fairly.
+  // Panic during the Q23 freeze. Measured fairly — but only ever measured at
+  // all if the finale actually ran; see composureAssessed() below. When it
+  // didn't run, this still yields a (misleadingly perfect) number, because
+  // the CALLER is responsible for checking composureAssessed(t) and
+  // suppressing it on the certificate — see src/report.js.
   const composure = clamp(100 - (t.telemetry.freezePointerDistance / 8000) * 100);
 
   // Nothing to do with the taker whatsoever — a property of the question set.
@@ -76,6 +80,17 @@ export function computeFaculties(t, falsifications = []) {
     reflectiveLatency, beliefBiasResistance, premiseTolerance,
     setShiftingCost, responseConsistency, composure, semanticSatiation
   };
+}
+
+// Whether the Q23 finale actually ran for this taker (see
+// src/transcript.js's createTranscript and src/ui/cursor.js's runFinale). A
+// taker under prefers-reduced-motion or on a coarse pointer never gets the
+// finale — shouldRunFinale() returns false for them — so freezePointerDistance
+// stays at its untouched default and would otherwise score a suspicious
+// perfect COMPOSURE. src/report.js consults this to suppress the index on
+// the certificate rather than report a number that was never measured.
+export function composureAssessed(t) {
+  return Boolean(t.telemetry.composureAssessed);
 }
 
 export function headlineCentile(rng) {

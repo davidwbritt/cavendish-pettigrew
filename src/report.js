@@ -8,8 +8,20 @@ export function drawStatements(rng) {
   return { barnum, insinuations };
 }
 
+// Printed in place of a COMPOSURE score when the Q23 finale never ran for
+// this taker (prefers-reduced-motion or a coarse pointer) — see
+// src/scoring.js's composureAssessed(). Deliberately terse and clinical
+// rather than five sentences like the other indices: the certificate is
+// happy to admit a procedure wasn't administered, but never explains why,
+// which is funnier and keeps the register consistent with everything else
+// on the page grading the taker with total seriousness regardless.
+const COMPOSURE_SUPPRESSED_NOTE =
+  'COMPOSURE — not assessed under modified administration conditions. ' +
+  'The procedure that measures this index was not administered for this sitting. No score is reported.';
+
 export function buildReport({
-  faculties, centile, classification, displayName, amendmentCount, rng
+  faculties, centile, classification, displayName, amendmentCount, rng,
+  composureAssessed = true
 }) {
   const { barnum, insinuations } = drawStatements(rng);
   const pool = [...barnum];
@@ -38,8 +50,21 @@ export function buildReport({
   const FILLER_5 = 'No further comment is indicated at this index.';
 
   const interpretation = FACULTIES.map((f, i) => {
-    const opening = `${f.label} is recorded at ${faculties[f.key]}.`;
+    const isSuppressedComposure = f.key === 'composure' && !composureAssessed;
+    // Still draw (and discard) a payload even when suppressed, so the shared
+    // pool is consumed in exactly the same sequence either way — suppressing
+    // composure must not shift which Barnum statement lands in a LATER
+    // faculty's paragraph or in the closer for a given seed.
     const payload = i === 1 ? insinuations[0] : (i === 3 ? insinuations[1] : take());
+    if (isSuppressedComposure) {
+      return {
+        facultyKey: f.key,
+        label: f.label,
+        score: null,
+        paragraph: COMPOSURE_SUPPRESSED_NOTE
+      };
+    }
+    const opening = `${f.label} is recorded at ${faculties[f.key]}.`;
     return {
       facultyKey: f.key,
       label: f.label,

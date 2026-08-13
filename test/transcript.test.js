@@ -16,6 +16,11 @@ test('a new transcript is empty', () => {
   assert.equal(t.telemetry.freezePointerDistance, 0);
 });
 
+test('composure is not assessed by default — only the Q23 finale sets it', () => {
+  const t = createTranscript();
+  assert.equal(t.telemetry.composureAssessed, false);
+});
+
 test('records answers and retrieves them by question number', () => {
   const t = createTranscript();
   recordAnswer(t, entry(1, { choice: 2 }));
