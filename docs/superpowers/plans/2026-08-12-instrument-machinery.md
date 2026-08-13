@@ -2874,6 +2874,35 @@ Not part of this plan. Once the machinery is green:
    enforces the composition rules.
    **Write novel cognitive-reflection items** — the canonical Frederick (2005)
    three are too well known, and a tester who recognises them defeats the deposit.
+
+   **Two parlour-game items (Dave's, 2026-08-12) — for the `affect` slots:**
+
+   - *"Which of these animals do you prefer?"* — four options. Purports to
+     measure **how the subject sees themselves**.
+   - *"Which of these colours do you prefer?"* — four options. Purports to
+     measure **how the subject believes others perceive them**.
+
+   These do a specific job the nonsense questions cannot: they are the first
+   items that feel like they are *about the taker*, and the taker will believe
+   they mean something — which is precisely the credulity the certificate then
+   exploits. They also read as entirely legitimate personality-inventory
+   practice, so they cost nothing in stealth.
+
+   **Placement:** the `affect` slots are Q15, Q18, Q20, Q21–24. Put the animal
+   at **Q15** and the colour at **Q20** — well separated, so the pattern does
+   not announce itself, and both landing inside the descent rather than the
+   farce. Both take `nonsense: false` (they are plausible, not absurd) and
+   `correct: null` (no wrong answer).
+
+   **How the certificate uses them** — decide during authoring:
+   - *Oblique*: the report never names the choice, but the Barnum prose about
+     self-perception is seeded near the relevant index. Subtler.
+   - *Deadpan explicit*: `Selection of the HERON is consistent with a subject
+     whose self-concept is organised around patience rather than force.` Louder,
+     and it reinforces the fake-rigor register the rest of the certificate runs on.
+
+   Recommendation: explicit for the animal, oblique for the colour — one named
+   mechanism sells the apparatus, two starts to feel like a magazine quiz.
 2. Replace all 24 strings in `BARNUM` and all 16 in `INSINUATION_TIERS`.
 3. Playtest one tester at a time, recording the answer to *"At which question
    number did you first suspect?"* Target is past Q20; below Q15, re-tune the
