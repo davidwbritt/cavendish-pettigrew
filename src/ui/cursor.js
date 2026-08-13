@@ -29,22 +29,39 @@ export function accumulateDistance(points) {
 }
 
 // A decaying spiral that always lands somewhere clickable — never against a
-// viewport edge, regardless of the starting point.
+// viewport edge, regardless of the starting point, AND regardless of the
+// viewport's own size.
 export function flingPath(from, viewport, steps) {
-  const cx = viewport.width / 2;
-  const cy = viewport.height / 2;
+  // A hardcoded 48px margin silently assumes both dimensions are at least
+  // 96px. Below that it either pins every point to exactly 48 — OUTSIDE the
+  // viewport whenever a dimension is under 48px — or flush against the edge
+  // (a dimension of 48-95px clamps its own axis to precisely 0 or that
+  // dimension minus 48, i.e. the edge itself). Scaling the margin down with
+  // the viewport keeps every point in range for any size and degrades to a
+  // zero margin only when a dimension is too small to have an interior at
+  // all (in which case resting flush against that edge is the only
+  // geometrically possible outcome, not a bug).
+  const width = Math.max(0, viewport.width);
+  const height = Math.max(0, viewport.height);
+  const cx = width / 2;
+  const cy = height / 2;
+  const margin = Math.min(48, Math.floor(Math.min(width, height) / 4));
+  // Outer Math.max(0, Math.min(dim, ...)) is a defensive final backstop —
+  // the inner clamp to [margin, dim - margin] is already provably in range
+  // since margin <= dim/4 <= dim - margin for any dim >= 0, but every
+  // returned point satisfying 0 <= coord <= dim is the actual invariant that
+  // matters, not how it got there.
+  const clamp = (v, dim) => Math.max(0, Math.min(dim, Math.max(margin, Math.min(dim - margin, v))));
+
   const path = [];
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
     const decay = 1 - t;
     const angle = t * Math.PI * 6;
-    const radius = Math.min(viewport.width, viewport.height) * 0.35 * decay;
+    const radius = Math.min(width, height) * 0.35 * decay;
     const x = cx + Math.cos(angle) * radius + (from.x - cx) * decay * decay;
     const y = cy + Math.sin(angle) * radius + (from.y - cy) * decay * decay;
-    path.push({
-      x: Math.max(48, Math.min(viewport.width - 48, x)),
-      y: Math.max(48, Math.min(viewport.height - 48, y))
-    });
+    path.push({ x: clamp(x, width), y: clamp(y, height) });
   }
   return path;
 }
@@ -123,7 +140,6 @@ export function createSyntheticCursor(root) {
       document.body.classList.remove('cursor-hidden');
     },
     freeze() { frozen = true; samples = []; },
-    thaw() { frozen = false; },
     distanceTravelled() { return accumulateDistance(samples); },
     position() { return { ...pos }; },
     async fling() {

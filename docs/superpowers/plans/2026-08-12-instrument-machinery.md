@@ -1190,6 +1190,14 @@ git commit -m "feat: transcript falsification with CRT-priority selection"
 - Produces: `FACULTIES` (array of `{ key, label }`), `computeFaculties(transcript, falsifications) -> Record<key, number>`, `headlineCentile(rng) -> 91..96`, `classify(faculties) -> string`, `AMENDMENT_PENALTY` (2), `preliminaryScore(base, amendments) -> number`, `SCORE_FLOOR` (0)
   Amended during Task 12: also produces `composureAssessed(transcript) -> boolean`, reading
   `transcript.telemetry.composureAssessed` — see "Known gap carried from the spec" below.
+  Amended during Task 12 fix round 1: `classify` gains an optional second parameter,
+  `classify(faculties, assessed)` — a predicate/Set/array of faculty keys that were genuinely
+  measured. Omitted, behaviour is identical to before (every Task 8 test still passes unmodified).
+  Supplied, unassessed keys are excluded from BOTH the highest and lowest ranking, so an
+  unmeasured faculty can never supply the headline's adjective or noun (falls back to the full
+  set if fewer than two keys would remain rankable). Closes a leak where suppressing COMPOSURE's
+  number in the interpretation table still left its guaranteed-perfect 100 as the likely highest
+  score feeding `classify`'s headline.
 
 > **Spec §7 requirement:** sub-scores are computed from the **altered**
 > transcript, not the real one. This is what makes the certificate internally
@@ -2817,8 +2825,14 @@ function showReview() {
 function showCertificate() {
   const faculties = computeFaculties(transcript, falsifications);
   const centile = headlineCentile(rng);
+  // The SAME composureAssessed(transcript) flag gates both the interpretation
+  // table's suppression (via buildReport, below) and the headline: without
+  // this, composure's guaranteed-perfect 100 when unassessed would still be
+  // the single highest score and would supply "COMPOSED" in the most
+  // prominent text on the certificate — the fix round 1 finding this closes.
+  const assessed = key => key !== 'composure' || composureAssessed(transcript);
   const report = buildReport({
-    faculties, centile, classification: classify(faculties),
+    faculties, centile, classification: classify(faculties, assessed),
     displayName: displayNameFor(24, typo),
     amendmentCount: amendmentCount(transcript), rng,
     composureAssessed: composureAssessed(transcript)

@@ -110,8 +110,33 @@ const NOUNS = {
   semanticSatiation: 'PROCESSOR'
 };
 
-export function classify(faculties) {
-  const ranked = [...FACULTIES].sort((a, b) => faculties[b.key] - faculties[a.key]);
+// `assessed`, when supplied, restricts which faculties may supply the
+// headline's adjective/noun — a predicate `key => boolean`, a Set of keys,
+// or an array of keys. Omitting it entirely preserves today's behaviour
+// exactly (every existing Task 8 test calls classify with one argument and
+// must keep passing unmodified). This exists so an unassessed faculty (e.g.
+// COMPOSURE when the Q23 finale never ran — see composureAssessed() above)
+// can never supply the headline, even though it still has a real, rankable
+// number from computeFaculties(). The certificate's interpretation table
+// already suppresses that number with a clinical note; without this, the
+// SAME fake-perfect-100 could still resurface as "COMPOSED" in the most
+// prominent text on the page.
+export function classify(faculties, assessed) {
+  const isAssessed = key => {
+    if (assessed === undefined) return true;
+    if (typeof assessed === 'function') return assessed(key);
+    if (assessed instanceof Set) return assessed.has(key);
+    if (Array.isArray(assessed)) return assessed.includes(key);
+    return true;
+  };
+
+  let rankable = FACULTIES.filter(f => isAssessed(f.key));
+  // Ranking needs at least two distinct faculties to name both an adjective
+  // and a noun; if the filter leaves fewer, fall back to the full set rather
+  // than risk `undefined` in the headline.
+  if (rankable.length < 2) rankable = FACULTIES;
+
+  const ranked = [...rankable].sort((a, b) => faculties[b.key] - faculties[a.key]);
   const highest = ranked[0].key;
   const lowest = ranked[ranked.length - 1].key;
   return `PROFILE 4-B — ${ADJECTIVES[highest]} ${NOUNS[lowest]}`;

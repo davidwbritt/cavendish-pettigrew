@@ -148,6 +148,58 @@ test('premiseTolerance on partial transcript reflects only questions in transcri
     'partial engagement: 3 answered out of 11 total nonsense questions');
 });
 
+test('classify with no assessed argument behaves exactly as before', () => {
+  const label = classify(computeFaculties(transcript()));
+  assert.match(label, /^PROFILE 4-B — [A-Z]+ [A-Z]+$/, `got "${label}"`);
+});
+
+test('classify excludes an unassessed composure from the headline adjective, even when it is the highest score', () => {
+  const faculties = {
+    reflectiveLatency: 40, beliefBiasResistance: 45, premiseTolerance: 50,
+    setShiftingCost: 55, responseConsistency: 60, composure: 100, semanticSatiation: 65
+  };
+  // Sanity check: without the assessed filter, composure genuinely IS the
+  // highest score, so it would supply the adjective.
+  assert.match(classify(faculties), /COMPOSED/, 'sanity: composure is the unguarded highest');
+
+  const assessed = key => key !== 'composure';
+  const guarded = classify(faculties, assessed);
+  assert.ok(!guarded.includes('COMPOSED'), `unassessed composure leaked into the headline: "${guarded}"`);
+  assert.match(guarded, /^PROFILE 4-B — [A-Z]+ [A-Z]+$/, `got "${guarded}"`);
+});
+
+test('classify excludes an unassessed composure from the headline noun, even when it is the lowest score', () => {
+  const faculties = {
+    reflectiveLatency: 90, beliefBiasResistance: 85, premiseTolerance: 80,
+    setShiftingCost: 75, responseConsistency: 70, composure: 0, semanticSatiation: 65
+  };
+  assert.match(classify(faculties), /SUBJECT/, 'sanity: composure is the unguarded lowest');
+
+  const guarded = classify(faculties, new Set(FACULTIES.filter(f => f.key !== 'composure').map(f => f.key)));
+  assert.ok(!guarded.includes('SUBJECT'), `unassessed composure leaked into the headline: "${guarded}"`);
+});
+
+test('classify accepts an array of assessed keys, not just a predicate or a Set', () => {
+  const faculties = {
+    reflectiveLatency: 40, beliefBiasResistance: 45, premiseTolerance: 50,
+    setShiftingCost: 55, responseConsistency: 60, composure: 100, semanticSatiation: 65
+  };
+  const assessedKeys = FACULTIES.filter(f => f.key !== 'composure').map(f => f.key);
+  const guarded = classify(faculties, assessedKeys);
+  assert.ok(!guarded.includes('COMPOSED'), `got "${guarded}"`);
+});
+
+test('classify falls back to the full faculty set rather than produce "undefined" if fewer than two remain rankable', () => {
+  const faculties = Object.fromEntries(FACULTIES.map((f, i) => [f.key, 40 + i * 8]));
+  const nothingAssessed = classify(faculties, () => false);
+  assert.match(nothingAssessed, /^PROFILE 4-B — [A-Z]+ [A-Z]+$/, `got "${nothingAssessed}"`);
+  assert.ok(!nothingAssessed.includes('undefined'));
+
+  const onlyOneAssessed = classify(faculties, ['composure']);
+  assert.match(onlyOneAssessed, /^PROFILE 4-B — [A-Z]+ [A-Z]+$/, `got "${onlyOneAssessed}"`);
+  assert.ok(!onlyOneAssessed.includes('undefined'));
+});
+
 test('composureAssessed is false for a fresh transcript (finale never ran)', () => {
   assert.equal(composureAssessed(createTranscript()), false);
 });
