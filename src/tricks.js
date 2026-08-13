@@ -7,6 +7,7 @@ export const TRICK_NAMES = [
 ];
 
 export const FINALE_QUESTION = 23;
+export const GENTLE_CLOSER = 24;
 export const TRICK_COUNT = 5;
 
 export function eligibleQuestions() {
@@ -14,6 +15,7 @@ export function eligibleQuestions() {
   for (let n = 11; n <= 24; n++) {
     if (RECOVERY_QUESTIONS.includes(n)) continue;
     if (n === FINALE_QUESTION) continue;
+    if (n === GENTLE_CLOSER) continue;
     out.push(n);
   }
   return out;
@@ -54,6 +56,7 @@ export function validateSchedule(schedule) {
     if (n < 11) errors.push(`Q${n}: no trick may fire before Q11`);
     if (RECOVERY_QUESTIONS.includes(n)) errors.push(`Q${n}: recovery questions are never sabotaged`);
     if (n === FINALE_QUESTION) errors.push(`Q${n}: the finale carries no bag trick`);
+    if (n === GENTLE_CLOSER) errors.push(`Q${n}: the gentle closer is never sabotaged`);
     if (!TRICK_NAMES.includes(schedule.get(n))) errors.push(`Q${n}: unknown trick`);
   }
   for (let i = 1; i < ns.length; i++) {
