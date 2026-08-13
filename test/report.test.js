@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { mulberry32 } from '../src/rng.js';
 import { BARNUM, INSINUATION_TIERS } from '../src/statements.js';
-import { drawStatements, buildReport, ordinal } from '../src/report.js';
+import { drawStatements, buildReport, ordinal, ASIDES } from '../src/report.js';
 import { FACULTIES } from '../src/scoring.js';
 import { CERTIFICATE_MAX_WIDTH_PX, certificateIndexRows } from '../src/ui/screens.js';
 
@@ -293,4 +293,101 @@ test('the discrepancy line never displaces the insinuation or the closer', () =>
     'the tier-3 insinuation must still land second-to-last');
   assert.ok(with_.observations[0].includes('AMENDMENT'),
     'the amendment verdict still opens the block');
+});
+
+// ── the asides ────────────────────────────────────────────────────────────
+// The certificate reports findings about the taker's writing. It is a
+// multiple-choice instrument; they have written nothing all sitting but
+// their name.
+
+test('an aside appears sometimes, not always, and never more than once', () => {
+  let withAside = 0;
+  for (let seed = 0; seed < 400; seed++) {
+    const r = build(seed);
+    const hits = r.interpretation.filter(p => ASIDES.some(a => p.paragraph.includes(a)));
+    assert.ok(hits.length <= 1, `seed ${seed} carried ${hits.length} asides`);
+    if (hits.length) withAside++;
+  }
+  assert.ok(withAside > 0, 'the aside must actually appear');
+  assert.ok(withAside < 400, 'and must not appear on every certificate');
+  // Roughly one in three. Wide bounds — this pins "occasional", not the rng.
+  assert.ok(withAside > 400 * 0.2 && withAside < 400 * 0.5,
+    `expected roughly a third, got ${withAside}/400`);
+});
+
+test('every aside in the pool gets used across enough seeds', () => {
+  const seen = new Set();
+  for (let seed = 0; seed < 400; seed++) {
+    for (const p of build(seed).interpretation) {
+      for (const a of ASIDES) if (p.paragraph.includes(a)) seen.add(a);
+    }
+  }
+  assert.equal(seen.size, ASIDES.length, 'an unreachable aside is a dead string');
+});
+
+test('an aside never lands in the summary, the observations or the closer', () => {
+  // The Summary must read as immaculate and the report must close on a warm,
+  // faultless Barnum — face straight on the way out.
+  for (let seed = 0; seed < 200; seed++) {
+    const r = build(seed);
+    for (const a of ASIDES) {
+      assert.ok(!r.summary.some(s => s.includes(a)), `seed ${seed}: aside in summary`);
+      assert.ok(!r.observations.some(o => o.includes(a)), `seed ${seed}: aside in observations`);
+      assert.ok(!r.closer.includes(a), `seed ${seed}: aside in the closer`);
+      assert.ok(!r.recommendations.some(o => o.includes(a)), `seed ${seed}: aside in recommendations`);
+    }
+  }
+});
+
+test('an aside never lands in a paragraph carrying an insinuation', () => {
+  // It would step on the one sentence in the paragraph built to pass
+  // unremarked.
+  for (let seed = 0; seed < 200; seed++) {
+    const r = build(seed);
+    for (const i of [1, 3]) {
+      for (const a of ASIDES) {
+        assert.ok(!r.interpretation[i].paragraph.includes(a),
+          `seed ${seed}: aside landed on insinuation paragraph ${i}`);
+      }
+    }
+  }
+});
+
+test('an aside sits mid-paragraph — the document never pauses on it', () => {
+  for (let seed = 0; seed < 200; seed++) {
+    for (const p of build(seed).interpretation) {
+      const a = ASIDES.find(x => p.paragraph.includes(x));
+      if (!a) continue;
+      assert.ok(!p.paragraph.endsWith(a), 'an aside must never end the paragraph');
+      assert.match(p.paragraph.slice(p.paragraph.indexOf(a) + a.length),
+        /^ Compensatory strategies/, 'the paragraph must carry straight on past it');
+    }
+  }
+});
+
+test('aside placement does not shift when COMPOSURE is suppressed', () => {
+  // The draws are unconditional for exactly this reason: an accessibility
+  // branch must never reshuffle the rest of the document.
+  for (let seed = 0; seed < 200; seed++) {
+    const assessed = buildReport({
+      faculties, centile: 94, classification: 'C', displayName: 'X',
+      amendmentCount: 0, rng: mulberry32(seed), composureAssessed: true
+    });
+    const suppressed = buildReport({
+      faculties, centile: 94, classification: 'C', displayName: 'X',
+      amendmentCount: 0, rng: mulberry32(seed), composureAssessed: false
+    });
+    for (let i = 0; i < assessed.interpretation.length; i++) {
+      if (FACULTIES[i].key === 'composure') continue;   // legitimately differs
+      assert.equal(suppressed.interpretation[i].paragraph, assessed.interpretation[i].paragraph,
+        `seed ${seed}: paragraph ${i} moved when composure was suppressed`);
+    }
+    assert.equal(suppressed.closer, assessed.closer);
+  }
+});
+
+test('the same seed always yields the same certificate', () => {
+  for (let seed = 0; seed < 50; seed++) {
+    assert.deepEqual(build(seed), build(seed));
+  }
 });

@@ -62,6 +62,30 @@ function nameDiscrepancyNote({ supplied, record }) {
     + 'RESPONSE CONSISTENCY (κ) has been adjusted accordingly.';
 }
 
+// An occasional aside, appended directly after a paragraph's payload
+// sentence, and never explained.
+//
+// THE JOKE IS THE ABSENCE OF EVIDENCE. This is a multiple-choice instrument.
+// The taker has typed exactly one thing all sitting — their name — and
+// written no prose whatsoever, so the certificate cannot possibly have
+// observed any of this. It reports it anyway, in the same flat register it
+// uses for the indices it did measure, and moves on without pausing. The
+// first entry goes further and demonstrates its own finding: a diagnosis of
+// sentence fragments, delivered as one.
+//
+// An aside appears in roughly a third of certificates and never more than
+// once. Rarity is the point: the certificate is the share object (spec §2),
+// so two people comparing results should find one in a copy and not the
+// other, and the one who has it should be unable to tell whether it means
+// anything. On every certificate it would read as a feature of the form; one
+// in three makes it a finding about them.
+export const ASIDES = [
+  'And a tendency toward the use of sentence fragments.',
+  'Some difficulty distinguishing "your" from "you\'re" is also indicated.',
+  'A recurring uncertainty as to "loose" and "lose" is noted.'
+];
+export const ASIDE_CHANCE = 1 / 3;
+
 export function buildReport({
   faculties, centile, classification, displayName, amendmentCount, rng,
   composureAssessed = true, nameDiscrepancy = null
@@ -92,6 +116,33 @@ export function buildReport({
   const FILLER_4 = 'Compensatory strategies are evident and are, on the whole, adequate.';
   const FILLER_5 = 'No further comment is indicated at this index.';
 
+  // ALL THREE draws happen unconditionally, before any branching, so the rng
+  // sequence is identical whether or not an aside lands — the same
+  // discipline the suppressed-composure payload below follows, and for the
+  // same reason: a conditional draw here would shift every Barnum statement
+  // after it and silently rewrite the rest of the certificate for that seed.
+  const asideRoll = rng();
+  const asideSlot = rng();
+  const asideWhich = rng();
+
+  // Paragraphs 2 and 4 (indices 1 and 3) carry the insinuations and are
+  // excluded — an aside immediately after an insinuation would step on the
+  // one sentence in the paragraph built to land unremarked.
+  //
+  // Eligibility deliberately does NOT depend on composureAssessed. Filtering
+  // out a suppressed COMPOSURE paragraph here would change which index the
+  // aside lands on for the same seed, which is precisely what "suppressing
+  // composure does not disturb any other faculty's paragraph" forbids — and
+  // the test caught it. When the slot does fall on a suppressed COMPOSURE,
+  // the aside is simply lost with the rest of that paragraph. Losing a
+  // one-in-three easter egg for reduced-motion takers costs far less than
+  // letting an unrelated accessibility branch reshuffle the document.
+  const eligible = FACULTIES.map((_, i) => i).filter(i => i !== 1 && i !== 3);
+  const asideAt = asideRoll < ASIDE_CHANCE
+    ? eligible[Math.floor(asideSlot * eligible.length)]
+    : -1;
+  const asideText = ASIDES[Math.floor(asideWhich * ASIDES.length)];
+
   const interpretation = FACULTIES.map((f, i) => {
     const isSuppressedComposure = f.key === 'composure' && !composureAssessed;
     // Still draw (and discard) a payload even when suppressed, so the shared
@@ -108,11 +159,14 @@ export function buildReport({
       };
     }
     const opening = `${f.label} is recorded at ${faculties[f.key]}.`;
+    // Sits after the payload and before FILLER_4, so the paragraph carries
+    // straight on past it without pausing.
+    const aside = i === asideAt ? `${asideText} ` : '';
     return {
       facultyKey: f.key,
       label: f.label,
       score: faculties[f.key],
-      paragraph: `${opening} ${FILLER_2} ${payload} ${FILLER_4} ${FILLER_5}`
+      paragraph: `${opening} ${FILLER_2} ${payload} ${aside}${FILLER_4} ${FILLER_5}`
     };
   });
 
