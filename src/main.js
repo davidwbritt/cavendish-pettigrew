@@ -221,7 +221,17 @@ function showMarking() {
 let certificateState = null;
 
 function showCertificate() {
-  const faculties = computeFaculties(transcript, falsifications);
+  // The instrument corrupted the name itself at Q11 and now bills the taker
+  // for the mismatch (see NAME_DISCREPANCY_PENALTY in scoring.js and the
+  // observation in report.js). Gated on the typo having actually been
+  // applied: introduceTypo returns kind 'none' for names too short to
+  // corrupt safely, and those takers see their name spelled correctly on
+  // every screen — accusing them of misspelling it would be a bug, not a
+  // joke. The same flag already gates the debrief's confession.
+  const nameCorrupted = typo.kind !== 'none';
+  const faculties = computeFaculties(transcript, falsifications, {
+    nameDiscrepancy: nameCorrupted
+  });
   const centile = headlineCentile(rng);
   // The SAME composureAssessed(transcript) flag gates both the interpretation
   // table's suppression (via buildReport, below) and the headline: without
@@ -233,7 +243,10 @@ function showCertificate() {
     faculties, centile, classification: classify(faculties, assessed),
     displayName: displayNameFor(24, typo),
     amendmentCount: amendmentCount(transcript), rng,
-    composureAssessed: composureAssessed(transcript)
+    composureAssessed: composureAssessed(transcript),
+    nameDiscrepancy: nameCorrupted
+      ? { supplied: typo.original, record: displayNameFor(24, typo) }
+      : null
   });
   // The running score (preliminaryScore) is a review-screen-only concept —
   // renderReview already computes and displays it live as amendments land

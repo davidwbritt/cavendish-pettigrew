@@ -238,3 +238,53 @@ test('a suppressed composure produces no numeric bar or score in the index table
     }
   }
 });
+
+// ── the name discrepancy ──────────────────────────────────────────────────
+// The instrument corrupts the name itself at Q11, carries it in the taker's
+// peripheral vision for twenty minutes, then reports the mismatch as their
+// defect and docks them for it.
+
+test('the certificate reports the name discrepancy and names the index it docked', () => {
+  const r = buildReport({
+    faculties, centile: 80, classification: 'PROFILE 4-B — X Y',
+    displayName: 'DAVOD BRITT', amendmentCount: 0, rng: mulberry32(7),
+    nameDiscrepancy: { supplied: 'DAVID BRITT', record: 'DAVOD BRITT' }
+  });
+  const note = r.observations.find(o => o.includes('NAME DISCREPANCY'));
+  assert.ok(note, 'the observation must appear');
+  assert.ok(note.includes('DAVID BRITT'), 'quotes what the taker typed');
+  assert.ok(note.includes('DAVOD BRITT'), 'and what the instrument decided it was');
+  assert.match(note, /name of record is "DAVOD BRITT"/,
+    'the corrupted spelling must be presented as the authoritative one');
+  assert.ok(note.includes('RESPONSE CONSISTENCY'), 'and it must name the index it charged');
+});
+
+test('no discrepancy line when the name was never corrupted', () => {
+  // introduceTypo returns kind 'none' for names too short to corrupt. Those
+  // takers see their name spelled right on every screen, so accusing them
+  // would be a bug rather than a joke.
+  const r = buildReport({
+    faculties, centile: 80, classification: 'PROFILE 4-B — X Y',
+    displayName: 'JO', amendmentCount: 0, rng: mulberry32(7)
+  });
+  assert.ok(!r.observations.some(o => o.includes('NAME DISCREPANCY')));
+});
+
+test('the discrepancy line never displaces the insinuation or the closer', () => {
+  const args = {
+    faculties, centile: 80, classification: 'PROFILE 4-B — X Y',
+    displayName: 'DAVOD BRITT', amendmentCount: 0, rng: mulberry32(7)
+  };
+  const without = buildReport({ ...args, rng: mulberry32(7) });
+  const with_ = buildReport({
+    ...args, rng: mulberry32(7),
+    nameDiscrepancy: { supplied: 'DAVID BRITT', record: 'DAVOD BRITT' }
+  });
+  assert.equal(with_.observations.length, without.observations.length + 1);
+  assert.equal(with_.observations.at(-1), 'No further comment is indicated.',
+    'the block must still close on the flat line');
+  assert.equal(with_.observations.at(-2), without.observations.at(-2),
+    'the tier-3 insinuation must still land second-to-last');
+  assert.ok(with_.observations[0].includes('AMENDMENT'),
+    'the amendment verdict still opens the block');
+});

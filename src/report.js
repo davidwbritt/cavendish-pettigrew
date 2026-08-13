@@ -36,9 +36,26 @@ const COMPOSURE_SUPPRESSED_NOTE =
   'COMPOSURE — not assessed under modified administration conditions. ' +
   'The procedure that measures this index was not administered for this sitting. No score is reported.';
 
+// The name line, for Behavioural Observations. The instrument corrupted the
+// name itself at Q11 (src/name.js), carried it in the taker's peripheral
+// vision for twenty minutes, and now reports the mismatch as a defect in
+// THEM — and, having quoted both spellings side by side, treats its own as
+// the name of record and the taker's as the error. It then names the index
+// it docked, so the deduction reads as procedure rather than spite.
+//
+// Only ever called when a typo was actually applied. Names too short to
+// corrupt (and any other case introduceTypo returns kind 'none' for) get no
+// discrepancy, no line and no deduction — accusing someone of misspelling a
+// name the certificate then prints correctly is not a joke, it is a bug.
+function nameDiscrepancyNote({ supplied, record }) {
+  return `NAME DISCREPANCY — entry given as "${supplied}"; name of record is "${record}". `
+    + 'Subject demonstrates inconsistency in self-report. '
+    + 'RESPONSE CONSISTENCY (κ) has been adjusted accordingly.';
+}
+
 export function buildReport({
   faculties, centile, classification, displayName, amendmentCount, rng,
-  composureAssessed = true
+  composureAssessed = true, nameDiscrepancy = null
 }) {
   const { barnum, insinuations } = drawStatements(rng);
   const pool = [...barnum];
@@ -90,10 +107,14 @@ export function buildReport({
     };
   });
 
+  // Sits after the amendment verdict and before the tier-3 insinuation, so
+  // the escalation still ends on the insinuation and the block still closes
+  // on 'No further comment is indicated.'
   const observations = [
     amendmentCount > 0
       ? `POST-HOC REVISION ATTEMPTS: ${amendmentCount} — subject exhibits discomfort with their own record.`
       : 'RECORD ACCEPTED WITHOUT AMENDMENT — subject demonstrates high deference to instrumentation.',
+    ...(nameDiscrepancy ? [nameDiscrepancyNote(nameDiscrepancy)] : []),
     insinuations[2],
     'No further comment is indicated.'
   ];

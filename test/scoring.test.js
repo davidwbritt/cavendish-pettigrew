@@ -2,10 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mulberry32 } from '../src/rng.js';
 import { createTranscript, recordAnswer, recordAmendment } from '../src/transcript.js';
-import { questionByNumber } from '../src/questions.js';
+import { questionByNumber, QUESTIONS } from '../src/questions.js';
 import {
   FACULTIES, computeFaculties, headlineCentile, classify,
-  AMENDMENT_PENALTY, preliminaryScore, SCORE_FLOOR, composureAssessed
+  AMENDMENT_PENALTY, preliminaryScore, SCORE_FLOOR, composureAssessed,
+  NAME_DISCREPANCY_PENALTY
 } from '../src/scoring.js';
 
 function transcript() {
@@ -223,4 +224,41 @@ test('setShiftingCost returns valid integer when denominator guard applies', () 
   const v = scores.setShiftingCost;
   assert.ok(Number.isInteger(v), `setShiftingCost is not an integer: ${v}`);
   assert.ok(v >= 0 && v <= 100, `setShiftingCost out of range: ${v}`);
+});
+
+test('a corrupted name is charged to RESPONSE CONSISTENCY, and only to it', () => {
+  const t = createTranscript();
+  for (const q of QUESTIONS) {
+    recordAnswer(t, {
+      n: q.n, choice: 0, realElapsedMs: 5000, displayedElapsedMs: 5000, changes: 0
+    });
+  }
+  const clean = computeFaculties(t, []);
+  const docked = computeFaculties(t, [], { nameDiscrepancy: true });
+
+  assert.equal(docked.responseConsistency, clean.responseConsistency - NAME_DISCREPANCY_PENALTY);
+  for (const key of Object.keys(clean)) {
+    if (key === 'responseConsistency') continue;
+    assert.equal(docked[key], clean[key], `${key} must not move`);
+  }
+});
+
+test('the name penalty stacks with amendments and never goes below zero', () => {
+  const t = createTranscript();
+  recordAnswer(t, { n: 1, choice: 0, realElapsedMs: 5000, displayedElapsedMs: 5000, changes: 0 });
+  for (let i = 0; i < 12; i++) recordAmendment(t, 1, 1);
+  const docked = computeFaculties(t, [], { nameDiscrepancy: true });
+  assert.ok(docked.responseConsistency >= 0, 'clamped, never negative');
+  assert.equal(docked.responseConsistency, 0);
+});
+
+test('the name penalty cannot reach the headline, since its index is ineligible', () => {
+  // responseConsistency is in HEADLINE_INELIGIBLE, which is why it is the
+  // safe index to charge: docking it can never change the adjective or noun.
+  const faculties = {
+    reflectiveLatency: 70, beliefBiasResistance: 60, premiseTolerance: 100,
+    setShiftingCost: 30, responseConsistency: 100, composure: 80, semanticSatiation: 23
+  };
+  const docked = { ...faculties, responseConsistency: 100 - NAME_DISCREPANCY_PENALTY };
+  assert.equal(classify(faculties), classify(docked));
 });

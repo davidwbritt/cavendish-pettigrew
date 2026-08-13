@@ -308,6 +308,14 @@
       log('certificate: footer = ' + ($('.cert-foot')?.textContent || '').trim());
       const body = document.body.textContent;
       log('certificate: mentions ko-fi? ' + /ko-?fi/i.test(body));
+      // The instrument corrupted the name at Q11 and now bills the taker.
+      const nameNote = [...$$('.cert-observations li, .cert-observations p, li, p')]
+        .map(e => e.textContent).find(t => /NAME DISCREPANCY/.test(t));
+      log('certificate: name discrepancy noted? ' + Boolean(nameNote));
+      if (nameNote) log('certificate: note = ' + nameNote.replace(/\s+/g, ' ').trim().slice(0, 220));
+      const kappa = [...$$('.index-row')].map(e => e.textContent)
+        .find(t => /RESPONSE CONSISTENCY/.test(t));
+      log('certificate: kappa row = ' + (kappa || 'MISSING').replace(/\s+/g, ' ').trim().slice(0, 90));
       $('.debrief-link')?.click();
       await sleep(30);
       log('after debrief click, screen = ' + screenKind());

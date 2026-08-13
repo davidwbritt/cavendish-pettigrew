@@ -6,6 +6,21 @@ import { shownChoiceFor } from './falsify.js';
 export const AMENDMENT_PENALTY = 2;
 export const SCORE_FLOOR = 0;
 
+// Docked from RESPONSE CONSISTENCY when the name on the certificate does not
+// match the name the taker typed — which is to say, always, whenever
+// introduceTypo actually corrupted something. The instrument introduced the
+// discrepancy at Q11 (src/name.js), carried it in the taker's peripheral
+// vision for twenty minutes, and now charges them for it as a defect in
+// self-report.
+//
+// RESPONSE CONSISTENCY is the right index to charge and the only safe one.
+// Right, because it already means "the subject's answers do not agree with
+// each other" and a name that disagrees with the record is exactly that
+// claim. Safe, because it is in HEADLINE_INELIGIBLE below — moving it can
+// never disturb the headline adjective distribution, which every other
+// index's value feeds.
+export const NAME_DISCREPANCY_PENALTY = 12;
+
 export const FACULTIES = [
   { key: 'reflectiveLatency',    label: 'REFLECTIVE LATENCY INDEX' },
   { key: 'beliefBiasResistance', label: 'BELIEF-BIAS RESISTANCE' },
@@ -18,7 +33,7 @@ export const FACULTIES = [
 
 const clamp = v => Math.max(0, Math.min(100, Math.round(v)));
 
-export function computeFaculties(t, falsifications = []) {
+export function computeFaculties(t, falsifications = [], { nameDiscrepancy = false } = {}) {
   // Every read of a choice goes through the falsified record, so the report's
   // arithmetic is consistent with the transcript the taker was shown.
   const choiceAt = n => {
@@ -71,7 +86,10 @@ export function computeFaculties(t, falsifications = []) {
   // revise an answer before Q11 without going through the review sheet's
   // amendment flow), at which point this index would start reflecting both.
   const changes = t.entries.reduce((s, e) => s + e.changes, 0);
-  const responseConsistency = clamp(100 - (changes * 4) - (amendmentCount(t) * 9));
+  const responseConsistency = clamp(
+    100 - (changes * 4) - (amendmentCount(t) * 9)
+    - (nameDiscrepancy ? NAME_DISCREPANCY_PENALTY : 0)
+  );
 
   // Panic during the Q23 freeze. Measured fairly — but only ever measured at
   // all if the finale actually ran; see composureAssessed() below. When it
