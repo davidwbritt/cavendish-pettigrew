@@ -73,6 +73,33 @@ body.cursor-hidden, body.cursor-hidden * { cursor: none !important; }
   border-top: 6px solid transparent;
   border-bottom: 6px solid transparent;
 }
+.review-row {
+  display: grid; grid-template-columns: 3rem 1fr 1.5rem 3rem 3.5rem 3rem;
+  gap: .6rem; align-items: baseline; padding: .35rem 0;
+  border-bottom: 1px solid rgba(46,74,107,.25); font-size: .86rem;
+}
+.review-n, .review-time, .answer { font-family: var(--mono); font-size: .78rem; }
+.review-prompt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.edit {
+  font-family: var(--mono); font-size: .64rem; letter-spacing: .1em;
+  background: transparent; border: 1px solid var(--blue); color: var(--blue);
+  padding: .15rem .4rem; cursor: pointer;
+}
+.correction {
+  font-family: var(--mono); font-weight: 700; font-size: 1rem;
+  color: var(--red); mix-blend-mode: multiply;
+  transform: rotate(-2deg) translateY(1px); display: inline-block;
+}
+.correction.punch { animation: punch 350ms ease-out; }
+@keyframes punch {
+  0%   { transform: rotate(-2deg) scale(1.4); opacity: 0; }
+  40%  { transform: rotate(-2deg) scale(1.4); opacity: 1; }
+  100% { transform: rotate(-2deg) scale(1) translateY(1px); opacity: 1; }
+}
+.score-line { display: flex; gap: .8rem; align-items: baseline; margin: 1.5rem 0; }
+.score-value { font-family: var(--mono); font-size: 1.3rem; }
+.section-title { font-family: var(--mono); font-size: .8rem; letter-spacing: .16em; font-weight: 400; }
+@media (prefers-reduced-motion: reduce) { .correction.punch { animation: none; } }
 </style>
 </head>
 <body>

@@ -1,5 +1,9 @@
 import { el, clear } from './dom.js';
 import { createTimerDriver } from './timer-driver.js';
+import { shownChoiceFor } from '../falsify.js';
+import { recordAmendment, amendmentCount } from '../transcript.js';
+import { preliminaryScore, AMENDMENT_PENALTY } from '../scoring.js';
+import { questionByNumber } from '../questions.js';
 
 // Guards against a leaked rAF loop: rendering any new question screen
 // unconditionally kills the previous one's timer loop, even if the caller
@@ -106,4 +110,74 @@ export function renderQuestion(root, { question, displayName, onChoose, onExpire
   activeStop = stop;
 
   return { driver, stop, optionElements: options, setInterceptor };
+}
+
+export function reviewRows(transcript, falsifications) {
+  return transcript.entries
+    .slice()
+    .sort((a, b) => a.n - b.n)
+    .map(e => ({
+      n: e.n,
+      shown: shownChoiceFor(e.n, e.choice, falsifications),
+      displayedElapsedMs: e.displayedElapsedMs,
+      amended: false
+    }));
+}
+
+export function renderReview(root, { transcript, falsifications, displayName, baseScore, onContinue }) {
+  // Same leaked-rAF-loop guard renderQuestion relies on (see the module-level
+  // activeStop comment above): this screen starts no timer of its own, but if
+  // a prior question screen's stop() was never called — the exact class of
+  // bug Tasks 10-12 kept finding — its rAF loop would otherwise keep ticking
+  // and writing into a subtree this clear() is about to detach.
+  if (activeStop) activeStop();
+
+  clear(root);
+  const rows = reviewRows(transcript, falsifications);
+  const scoreValue = el('span', { class: 'score-value', text: String(baseScore) });
+
+  const refreshScore = () => {
+    scoreValue.textContent = String(preliminaryScore(baseScore, amendmentCount(transcript)));
+  };
+
+  const rowNodes = rows.map(row => {
+    const q = questionByNumber(row.n);
+    const answerCell = el('span', { class: 'answer', text: 'ABCD'[row.shown] ?? '—' });
+    const stamp = el('span', { class: 'correction' });
+
+    const edit = el('button', {
+      class: 'edit', text: 'EDIT',
+      onclick: () => {
+        const next = (row.shown + 1) % 4;
+        row.shown = next;
+        answerCell.textContent = 'ABCD'[next];
+        recordAmendment(transcript, row.n, next);
+        stamp.textContent = `−${AMENDMENT_PENALTY}`;
+        stamp.classList.remove('punch');
+        void stamp.offsetWidth;          // restart the animation
+        stamp.classList.add('punch');
+        refreshScore();
+      }
+    });
+
+    return el('div', { class: 'review-row' }, [
+      el('span', { class: 'review-n', text: `Q${row.n}` }),
+      el('span', { class: 'review-prompt', text: q.prompt }),
+      answerCell,
+      el('span', { class: 'review-time', text: `0:${String(Math.round(row.displayedElapsedMs / 1000)).padStart(2, '0')}` }),
+      edit,
+      stamp
+    ]);
+  });
+
+  root.append(
+    renderHeader(displayName),                     // no EDIT control on the name
+    el('h2', { class: 'section-title', text: 'REVIEW OF RESPONSES' }),
+    el('p', { text: 'Confirm the record below before your results are compiled.' }),
+    el('div', { class: 'score-line' }, [
+      el('span', { class: 'label', text: 'PRELIMINARY SCORE' }), scoreValue
+    ]),
+    el('div', { class: 'review-table' }, rowNodes),
+    el('button', { class: 'begin', text: 'COMPILE RESULTS', onclick: onContinue })
+  );
 }
