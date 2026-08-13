@@ -679,7 +679,15 @@ export function renderCertificate(root, { report, faculties, centile, onDebrief 
     // Ko-fi lived only on the debrief until that link was withdrawn, which
     // would have buried it completely. It belongs on the certificate anyway:
     // this is the screen people actually reach, and the one they screenshot.
-    el('a', { class: 'debrief-link', href: 'https://ko-fi.com/clevermonkey', text: 'ko-fi.com/clevermonkey' })
+    // target=_blank is load-bearing on itch.io, where the whole instrument
+    // runs inside an iframe: without it this navigates the FRAME, and the
+    // certificate is replaced by ko-fi in a small box with no way back.
+    // Harmless everywhere else, so it is set unconditionally rather than
+    // detected.
+    el('a', {
+      class: 'debrief-link', href: 'https://ko-fi.com/clevermonkey',
+      target: '_blank', rel: 'noopener noreferrer', text: 'ko-fi.com/clevermonkey'
+    })
   );
 }
 
@@ -773,7 +781,10 @@ export function renderDebrief(root, { typoApplied = false, onBack, transcript, f
   const closing = debriefClosingText(typoApplied);
 
   const links = [
-    el('a', { class: 'debrief-link', href: 'https://ko-fi.com/clevermonkey', text: 'ko-fi.com/clevermonkey' })
+    el('a', {
+      class: 'debrief-link', href: 'https://ko-fi.com/clevermonkey',
+      target: '_blank', rel: 'noopener noreferrer', text: 'ko-fi.com/clevermonkey'
+    })
   ];
   if (onBack) {
     links.unshift(

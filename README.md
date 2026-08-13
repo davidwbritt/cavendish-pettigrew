@@ -12,8 +12,9 @@ cognitive reflection, and the Barnum effect.
 
     npm test             # node --test, zero dependencies
     npm run build        # emits dist/index.html
+    npm run package      # emits dist/cavendish-pettigrew-itch.zip
     tools/probe/run.sh   # end-to-end browser click-through (needs Chrome)
-    npm run dev      # serves index.html for development, http://localhost:8080
+    npm run dev          # serves index.html for development, http://localhost:8080
 
 `index.html` loads `src/main.js` as an ES module (`<script type="module">`),
 which browsers refuse to fetch over `file://` — opening `index.html` by
@@ -25,16 +26,55 @@ Ship `dist/index.html`.
 
 ## Deploying
 
-`dist/` is gitignored and there is no CI/Pages workflow — nothing is
-deployable until you build and publish by hand:
+Two targets, and they ship differently.
 
-    npm run build
+### The live site — GitHub Pages
 
-Then publish the single built file, `dist/index.html`, to a `gh-pages`
-branch (an orphan branch containing only that file — not the source tree),
-and set the repository's GitHub Pages source to serve from `gh-pages` /
-root. Do not commit `dist/` to `develop`/`main` and do not add a CI
-workflow to automate this — both are intentionally out of scope for now.
+**Pushing to `develop` publishes it. There is no build or deploy step.**
+
+    git push origin develop
+
+Pages is configured to serve `develop` at `/` (verified against the API:
+`source: { branch: "develop", path: "/" }`), *unbundled* — the committed
+`index.html` loads `src/main.js` as an ES module, and `src/` is committed,
+which works because Pages serves over HTTPS. Live at
+<https://davidwbritt.github.io/cavendish-pettigrew/>.
+
+There is no `gh-pages` branch; `develop` is the only branch. `dist/` stays
+gitignored and is not involved here at all.
+
+### itch.io
+
+    npm run package     # builds, then writes dist/cavendish-pettigrew-itch.zip
+
+The zip holds exactly one file — `index.html`, at the **root** of the
+archive, which is where itch looks for it. A zip with the file nested inside
+a folder is the most common way an HTML upload fails there, and itch reports
+it as a missing `index.html`, which reads like a build problem rather than a
+packaging one. `package.mjs` stages the file in a temp directory so that
+cannot happen by hand.
+
+The built file is entirely self-contained: 18 modules inlined into one
+non-module `<script>`, system fonts only, no images, no network. Nothing is
+fetched at runtime.
+
+On itch:
+
+1. **Dashboard → Create new project** (or edit the existing one).
+2. **Kind of project: HTML.**
+3. Upload `dist/cavendish-pettigrew-itch.zip` and tick
+   **"This file will be played in the browser"**.
+4. **Enable scrollbars.** Not optional — the review sheet, the marked paper
+   and the certificate are all long documents. Without scrollbars they are
+   cut off at the frame's bottom edge with no way to reach the rest.
+5. Viewport ~**960 × 720**, fullscreen button on, mobile friendly on. The
+   layout is a single centred column and reflows; 960 wide is enough to
+   avoid horizontal scroll (verified in an iframe at that width).
+6. Set visibility, then **Save & view page**.
+
+External links (ko-fi) carry `target="_blank"` precisely because of this
+iframe: without it, clicking one navigates the *frame* and replaces the
+instrument with ko-fi in a small box, with no way back.
 
 ## Spec and plans
 
