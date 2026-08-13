@@ -360,9 +360,22 @@ export function applyAmendment(transcript, row) {
   const next = (current + 1) % 4;
   row.shown = next;
   row.amended = true;
+  // Per-ROW edit count, distinct from the transcript-wide amendmentCount
+  // that drives the running score. Cycling A -> B -> C -> D on one row costs
+  // the taker every time, and the stamp has to say so: −2, −4, −6. It read
+  // a constant −2 on every click, which quietly understated the price on
+  // exactly the row where someone is hunting for the answer they know they
+  // gave — they would watch the total fall by six while the row claimed two.
+  row.amendments = (row.amendments || 0) + 1;
   row.answerText = answerTextFor(row.n, next);
   recordAmendment(transcript, row.n, next);
   return next;
+}
+
+// The stamp's text for a row, cumulative. Pure so the −2/−4/−6 progression
+// is unit-testable without DOM, like everything else in this file.
+export function rowPenaltyText(row) {
+  return `−${AMENDMENT_PENALTY * (row.amendments || 0)}`;
 }
 
 export function reviewRows(transcript, falsifications) {
@@ -377,6 +390,7 @@ export function reviewRows(transcript, falsifications) {
         answerText: answerTextFor(e.n, shown),
         displayedElapsedMs: e.displayedElapsedMs,
         amended: false,
+        amendments: 0,
         // The instrument's own forced answer is shown exactly like any
         // other row — same letter, same text, no visual distinction there
         // — but the row is additionally branded REFUSED (renderReview
@@ -385,6 +399,52 @@ export function reviewRows(transcript, falsifications) {
         timedOut: Boolean(e.timedOut)
       };
     });
+}
+
+// The answer key, for the DEBRIEF only — never the review sheet. Putting it
+// on the review sheet would end the piece there: a real instrument does not
+// show its key mid-administration, it would expose the farce items as having
+// no correct answer, and above all it would let the taker spot the three
+// falsified rows BEFORE the certificate, which is the one screen the whole
+// deception exists to set up.
+//
+// `yours` is the taker's ACTUAL choice, not the falsified one. Everywhere
+// else in the app reads through shownChoiceFor because the instrument is
+// lying; this is the one place that reports what really happened, and the
+// falsified rows carry `recorded` alongside so the taker can see exactly
+// what was done to them. That comparison is the payoff for the entire
+// falsification mechanism — the row they were certain about, proved.
+export function answerKeyRows(transcript, falsifications) {
+  return transcript.entries
+    .slice()
+    .sort((a, b) => a.n - b.n)
+    .map(e => {
+      const q = questionByNumber(e.n);
+      const recorded = shownChoiceFor(e.n, e.choice, falsifications);
+      const falsified = recorded !== e.choice;
+      return {
+        n: e.n,
+        prompt: q.prompt,
+        scorable: q.correct !== null,
+        correct: q.correct !== null && e.choice === q.correct,
+        yours: answerTextFor(e.n, e.choice),
+        yourLetter: Number.isInteger(e.choice) ? 'ABCD'[e.choice] : null,
+        answer: q.correct !== null ? q.options[q.correct] : null,
+        answerLetter: q.correct !== null ? 'ABCD'[q.correct] : null,
+        falsified,
+        recorded: falsified ? answerTextFor(e.n, recorded) : null,
+        recordedLetter: falsified && Number.isInteger(recorded) ? 'ABCD'[recorded] : null,
+        timedOut: Boolean(e.timedOut)
+      };
+    });
+}
+
+// "You answered N of the M items that had an answer." Pure, and derived from
+// the same rows the key renders, so the count can never disagree with the
+// ticks beside it.
+export function answerKeyScore(rows) {
+  const scorable = rows.filter(r => r.scorable);
+  return { correct: scorable.filter(r => r.correct).length, total: scorable.length };
 }
 
 export function renderReview(root, { transcript, falsifications, displayName, baseScore, onContinue }) {
@@ -429,7 +489,7 @@ export function renderReview(root, { transcript, falsifications, displayName, ba
         applyAmendment(transcript, row);
         answerLetter.textContent = letterPrefix(row.shown);
         answerText.textContent = answerBody(row);
-        stamp.textContent = `−${AMENDMENT_PENALTY}`;
+        stamp.textContent = rowPenaltyText(row);
         stamp.classList.remove('punch');
         void stamp.offsetWidth;          // restart the animation
         stamp.classList.add('punch');
@@ -588,7 +648,45 @@ export function debriefClosingText(typoApplied) {
     : `${DEBRIEF_CLOSING_BASE}.`;
 }
 
-export function renderDebrief(root, { typoApplied = false, onBack } = {}) {
+// Builds the answer-key section appended to the debrief. Returns [] when no
+// transcript was supplied, so renderDebrief stays callable bare (as its
+// tests do) and simply omits the section.
+function answerKeySection(transcript, falsifications) {
+  if (!transcript || !Array.isArray(transcript.entries) || !transcript.entries.length) return [];
+  const rows = answerKeyRows(transcript, falsifications || []);
+  const { correct, total } = answerKeyScore(rows);
+
+  const line = (cls, label, value) => el('div', { class: `key-line ${cls}` }, [
+    el('span', { class: 'key-label', text: label }),
+    el('span', { class: 'key-value', text: value })
+  ]);
+
+  return [
+    el('h2', { class: 'section-title', text: 'YOUR ANSWERS' }),
+    el('p', { text: `For the record, since the instrument never told you: you answered ${correct} of the ${total} items that had a right answer. The remaining ${rows.length - total} had none — no answer to them was better than any other, whatever the certificate implied.` }),
+    el('div', { class: 'key-table' }, rows.map(r => el('div', { class: 'key-row' }, [
+      el('div', { class: 'key-head' }, [
+        el('span', { class: 'key-n', text: `Q${r.n}` }),
+        // Only scorable items get a verdict; an affect item has nothing to
+        // be right or wrong about and must not be marked as though it did.
+        r.scorable
+          ? el('span', { class: r.correct ? 'key-tick' : 'key-cross', text: r.correct ? 'CORRECT' : 'INCORRECT' })
+          : el('span', { class: 'key-none', text: 'NO RIGHT ANSWER' }),
+        r.timedOut ? el('span', { class: 'refused', text: 'TIMED OUT' }) : null
+      ]),
+      el('p', { class: 'key-prompt', text: r.prompt }),
+      line('', 'YOU ANSWERED', r.yours ? `${r.yourLetter}. ${r.yours}` : '(nothing recorded)'),
+      r.scorable ? line('', 'CORRECT ANSWER', `${r.answerLetter}. ${r.answer}`) : null,
+      // The receipt. Red, and last, so it is the thing the eye stops on.
+      r.falsified
+        ? line('key-falsified', 'THE RECORD SAID',
+            r.recorded ? `${r.recordedLetter}. ${r.recorded}` : '(nothing)')
+        : null
+    ].filter(Boolean))))
+  ];
+}
+
+export function renderDebrief(root, { typoApplied = false, onBack, transcript, falsifications } = {}) {
   // Same leaked-rAF-loop guard every other screen opens with (see the
   // module-level activeStop comment above).
   if (activeStop) activeStop();
@@ -623,6 +721,12 @@ export function renderDebrief(root, { typoApplied = false, onBack } = {}) {
     // converting "that stung" into "it got me the way it gets everyone".
     el('p', { text: 'If one of those sentences landed harder than the others, that is not something the instrument found out about you. It is the oldest trick in the drawer: write a line that is true of nearly everyone who has worked hard at something for a long time, deliver it flatly enough to sound measured, and let the reader supply the specifics. You supplied the specifics. Everyone does. Knowing how it works does not switch it off — that is rather the point of it.' }),
     el('p', { text: 'None of it was about you. It was about all of us, which is the only reason it works at all. Thank you for sitting it.' }),
+    // The key goes AFTER the closing line, not before it. The reveal is the
+    // emotional landing of the whole piece and a 24-row table dropped in
+    // front of it would flatten that beat entirely. Placed here it reads as
+    // what it is: an appendix, for the taker who has finished being got and
+    // now wants to know whether they were right about the ball.
+    ...answerKeySection(transcript, falsifications),
     ...links
   );
 }

@@ -261,6 +261,19 @@
         log('review: row AFTER  edit = ' + rowAfter);
         log('review: answer text actually changed? ' + (rowBefore !== rowAfter));
         log('review: correction stamp text = ' + ($('.correction')?.textContent || '(none)'));
+
+        // Cycle the SAME row twice more. The stamp must accumulate -2 -> -4
+        // -> -6 in step with the running total; it used to print a constant
+        // -2 while the score fell by six.
+        const stamps = [$('.correction')?.textContent];
+        const scores = [$('.score-value')?.textContent];
+        for (let k = 0; k < 2; k++) {
+          edit.click(); await sleep(30);
+          stamps.push($('.correction')?.textContent);
+          scores.push($('.score-value')?.textContent);
+        }
+        log('review: stamp across 3 edits of one row = ' + JSON.stringify(stamps) + ' (expect -2,-4,-6)');
+        log('review: score across those edits = ' + JSON.stringify(scores) + ' (expect 98,96,94)');
       }
       log('review: any literal "undefined" on screen? ' + /undefined/.test(document.body.innerText || ''));
       $$('button').find(b => /COMPILE/i.test(b.textContent))?.click();
@@ -280,6 +293,18 @@
       $('.debrief-link')?.click();
       await sleep(30);
       log('after debrief click, screen = ' + screenKind());
+      await sleep(60);
+      const keyRows = $$('.key-row');
+      log('debrief: answer-key rows = ' + keyRows.length + ' (expect 24)');
+      log('debrief: verdict markers = ' + $$('.key-tick').length + ' correct, '
+        + $$('.key-cross').length + ' incorrect, ' + $$('.key-none').length + ' unscorable');
+      log('debrief: RECORD SAID rows = ' + $$('.key-falsified').length + ' (expect 3)');
+      const summary = [...$$('p')].map(p => p.textContent).find(t => /items that had a right answer/.test(t));
+      log('debrief: summary = ' + (summary || 'MISSING').slice(0, 160));
+      if (keyRows[0]) log('debrief: key row 1 = ' + keyRows[0].textContent.replace(/\s+/g, ' ').trim().slice(0, 200));
+      const falsifiedRow = $('.key-falsified')?.closest('.key-row');
+      if (falsifiedRow) log('debrief: a falsified row = ' + falsifiedRow.textContent.replace(/\s+/g, ' ').trim().slice(0, 230));
+      log('debrief: any literal "undefined" on screen? ' + /undefined/.test(document.body.innerText || ''));
     } else {
       log('FATAL: no certificate, ended on ' + screenKind());
     }

@@ -250,6 +250,11 @@ function renderCertificateScreen() {
 function showDebrief() {
   renderDebrief(root, {
     typoApplied: typo.kind !== 'none',
+    // The debrief is the one screen that reports what actually happened, so
+    // it needs both the true transcript and the falsifications applied to
+    // it — the key shows the taker's real answer next to what the review
+    // sheet claimed they said.
+    transcript, falsifications,
     onBack: e => { e.preventDefault(); renderCertificateScreen(); }
   });
 }

@@ -126,6 +126,33 @@ body {
 .subject-label { display: block; margin-bottom: .9rem; }
 /* BEGIN on its own line, centred across the content column. */
 .begin-row { text-align: center; margin-top: 2.75rem; }
+
+/* The debrief's answer key. Plainer than the review sheet on purpose: the
+   instrument has stopped performing by this point, so this is the one table
+   in the document that is simply telling the truth. */
+.key-table { margin-top: 1.5rem; }
+.key-row { border-top: 1px solid var(--rule); padding: 1rem 0; }
+.key-head {
+  display: flex; gap: .8rem; align-items: baseline; flex-wrap: wrap;
+  font-family: var(--mono); font-size: .7rem; letter-spacing: .1em;
+}
+.key-n { font-weight: 700; }
+.key-tick { color: var(--blue); }
+.key-cross { color: var(--ink); opacity: .55; }
+.key-none { color: var(--ink); opacity: .45; }
+.key-prompt { margin: .5rem 0 .6rem; overflow-wrap: break-word; }
+.key-line {
+  display: flex; gap: .8rem; align-items: baseline;
+  font-size: .92rem; margin-bottom: .2rem;
+}
+.key-label {
+  font-family: var(--mono); font-size: .62rem; letter-spacing: .1em;
+  color: var(--blue); flex: 0 0 8.5rem; text-transform: uppercase;
+}
+.key-value { overflow-wrap: break-word; }
+/* The receipt for the three altered rows — the only saturated thing in the
+   section, and the last line in its row, so it is where the eye stops. */
+.key-falsified .key-label, .key-falsified .key-value { color: var(--red); }
 .begin {
   font-family: var(--mono); font-size: .78rem; letter-spacing: .14em;
   background: var(--ink); color: var(--paper); border: 0; padding: .7rem 1.6rem; cursor: pointer;
