@@ -116,8 +116,16 @@ body {
   font: inherit; font-size: 1.15rem;
   background: transparent; color: var(--ink); caret-color: var(--ink);
   border: 1px solid var(--ink); padding: .55rem .7rem;
-  width: 100%; max-width: 24rem; margin-bottom: 2rem;
+  width: 100%; max-width: 24rem; margin-bottom: 0;
+  /* Block, so BEGIN cannot ride up onto the same line. The field is capped
+     at 24rem inside an 84ch measure, which left an inline-block button
+     ample room to sit in the gap to its right. */
+  display: block;
 }
+/* Breathing room between the field's caption and the box it captions. */
+.subject-label { display: block; margin-bottom: .9rem; }
+/* BEGIN on its own line, centred across the content column. */
+.begin-row { text-align: center; margin-top: 2.75rem; }
 .begin {
   font-family: var(--mono); font-size: .78rem; letter-spacing: .14em;
   background: var(--ink); color: var(--paper); border: 0; padding: .7rem 1.6rem; cursor: pointer;

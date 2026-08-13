@@ -99,9 +99,17 @@ export function renderLanding(root, onStart) {
 
     el('p', { text: 'Do not use paper, calculators or reference material. Assistance from another person invalidates the administration.' }),
 
-    el('label', { class: 'label', text: 'SUBJECT NAME' }),
+    // `subject-label` carries only the landing-specific block layout and
+    // spacing; the shared `label` class keeps the typography. They are kept
+    // separate because `label` is also worn by the SUBJECT/FORM fields
+    // inside .form-header, which are laid out by their own flex rules on
+    // every subsequent screen — restyling it here would follow the taker
+    // through the whole instrument.
+    el('label', { class: 'label subject-label', text: 'SUBJECT NAME' }),
     input,
-    el('button', { class: 'begin', text: 'BEGIN', onclick: () => onStart(input.value.trim()) })
+    el('div', { class: 'begin-row' }, [
+      el('button', { class: 'begin', text: 'BEGIN', onclick: () => onStart(input.value.trim()) })
+    ])
   );
   input.focus();
   requestAnimationFrame(() => {
