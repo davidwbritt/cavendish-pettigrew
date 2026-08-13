@@ -118,17 +118,38 @@ const NOUNS = {
   semanticSatiation: 'PROCESSOR'
 };
 
-// premiseTolerance and semanticSatiation are structurally constant: every
-// run now lands premiseTolerance on a hard 100 (see the fix-round comment
-// at premiseTolerance's definition above — expiry commits an INTEGER choice,
-// so Number.isInteger(choice) is true for every question in every run) and
-// semanticSatiation is derived purely from the fixed question set, never
-// the taker (see its "nothing to do with the taker whatsoever" comment).
-// Both remain real, rankable numbers in the certificate's index table — this
-// set ONLY removes them from HEADLINE candidacy, where a permanent joint-
-// maximum/minimum would otherwise win classify()'s stable sort every time
-// and make the headline adjective/noun a constant.
-const HEADLINE_INELIGIBLE = new Set(['premiseTolerance', 'semanticSatiation']);
+// premiseTolerance, semanticSatiation and responseConsistency are excluded
+// from HEADLINE candidacy because each is structurally constant or
+// near-constant, NOT because of anything the taker actually did — ranking
+// a constant produces the SAME headline for every taker, which quietly
+// destroys the whole personalisation illusion the certificate depends on.
+// Do not "helpfully" remove any of these three without re-running a large
+// varied-seed sweep and checking the resulting adjective distribution; a
+// naive fix here previously just moved the constant-headline bug from one
+// faculty to the next one in FACULTIES order instead of closing it.
+//   - premiseTolerance now lands on a hard 100 in every run (see the
+//     fix-round comment at its definition above — expiry commits an
+//     INTEGER choice, so Number.isInteger(choice) is true for every
+//     question in every run).
+//   - semanticSatiation is derived purely from the fixed question set,
+//     never the taker (see its "nothing to do with the taker whatsoever"
+//     comment) — always constant, not just usually.
+//   - responseConsistency = 100 - changes*4 - amendmentCount*9, and
+//     `changes` is structurally always 0 (the outcome gate guarantees
+//     recordAnswer fires exactly once per question — see its comment in
+//     computeFaculties above), so it sits at a hard 100 for any taker who
+//     makes no post-hoc amendments — the large majority. Confirmed by
+//     execution: excluding only the first two left responseConsistency
+//     inheriting the joint-maximum slot and supplying CONSISTENT in ~84%
+//     of a 1500-run varied sweep. setShiftingCost was also measured as an
+//     exclusion candidate and rejected — it made headline variety WORSE
+//     (10 distinct headlines down to 6), so it stays eligible.
+// All three remain real, rankable numbers in the certificate's index table
+// — this set ONLY removes them from HEADLINE candidacy, where a permanent
+// (or near-permanent) joint-maximum/minimum would otherwise win
+// classify()'s stable sort far too often and make the headline read as a
+// near-constant instead of a personalised one.
+const HEADLINE_INELIGIBLE = new Set(['premiseTolerance', 'semanticSatiation', 'responseConsistency']);
 
 // `assessed`, when supplied, restricts which faculties may supply the
 // headline's adjective/noun — a predicate `key => boolean`, a Set of keys,

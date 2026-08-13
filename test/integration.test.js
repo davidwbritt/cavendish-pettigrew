@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { mulberry32, pick } from '../src/rng.js';
-import { createTranscript, recordAnswer, amendmentCount } from '../src/transcript.js';
+import { createTranscript, recordAnswer, recordAmendment, amendmentCount } from '../src/transcript.js';
 import { questionByNumber, QUESTIONS } from '../src/questions.js';
 import { scheduleTricks, validateSchedule } from '../src/tricks.js';
 import { introduceTypo } from '../src/name.js';
@@ -182,22 +182,36 @@ test('a run where every question times out yields 24 entries, all with integer c
 // permanent joint-maximum early in FACULTIES order, premiseTolerance won
 // classify()'s stable descending sort every time, pinning the certificate's
 // headline adjective to ACCOMMODATING for every taker (measured 3000/3000
-// in the review that found this). classify() now excludes both structurally
-// -constant faculties from headline candidacy (HEADLINE_INELIGIBLE), while
-// leaving computeFaculties() itself untouched and leaving both faculties'
-// real scores in the certificate's index table. This sweeps varied seeded
-// runs — varied timings, correctness, some timeouts, composure assessed
-// only half the time — and asserts the headline adjective is not constant
-// and neither excluded faculty's word ever appears in it.
+// in the review that found this).
+//
+// CORRECTION (same review, follow-up): excluding only those two moved the
+// bug rather than closing it. responseConsistency = 100 - changes*4 -
+// amendmentCount*9, and `changes` is structurally always 0 in the real app
+// (the outcome gate guarantees recordAnswer fires exactly once per
+// question), so responseConsistency also sits at a hard 100 for any taker
+// who makes no amendments — the large majority — and simply inherited the
+// joint-maximum slot: a run of this exact sweep with only the first two
+// exclusions applied measured CONSISTENT in ~84% of runs. responseConsistency
+// is now included in HEADLINE_INELIGIBLE too (see the comment there —
+// setShiftingCost was also measured as a candidate and rejected because
+// excluding it made variety WORSE, so it stays eligible). classify() still
+// leaves computeFaculties() itself untouched and leaves all three excluded
+// faculties' real scores in the certificate's index table — only headline
+// candidacy changed.
+//
+// This sweeps varied seeded runs — varied timings, correctness, ~12%
+// timeouts, 0-2 amendments, composure assessed only half the time — and
+// asserts the headline adjective is not constant and none of the three
+// excluded faculties' words ever appear in it.
 test('headline adjective is not a structural constant across 1000+ varied seeded runs', () => {
-  const RUNS = 1200;
+  const RUNS = 1500;
   const adjectiveCounts = {};
   for (let s = 0; s < RUNS; s++) {
     const rng = mulberry32(s);
     const schedule = scheduleTricks(rng);
     const t = createTranscript();
     for (const q of QUESTIONS) {
-      const timedOut = (s + q.n * 3) % 11 === 0; // some questions time out
+      const timedOut = (s + q.n * 3) % 8 === 0; // ~12% of question-slots time out
       const answeredRight = (s * 5 + q.n * 13) % 4 !== 0; // varied correctness
       let choice;
       if (timedOut) {
@@ -210,8 +224,16 @@ test('headline adjective is not a structural constant across 1000+ varied seeded
       const realElapsedMs = 1500 + ((s * 37 + q.n * 91) % 43000); // varied timings
       recordAnswer(t, {
         n: q.n, choice, realElapsedMs, displayedElapsedMs: 12000,
-        changes: (s + q.n) % 5 === 0 ? 1 : 0, trick: schedule.get(q.n) ?? null, timedOut
+        changes: 0, trick: schedule.get(q.n) ?? null, timedOut
       });
+    }
+    // 0-2 genuine post-hoc amendments per run, as the actual review flow
+    // produces (see applyAmendment in src/ui/screens.js) — this is what
+    // moves responseConsistency off its structural 100 for a minority of
+    // runs, matching real taker behaviour.
+    const amendmentTotal = s % 5; // 0,1,2,3,4 -> clamp below to the 0-2 range
+    for (let i = 0; i < Math.min(amendmentTotal, 2); i++) {
+      recordAmendment(t, 2 + i, i % 4);
     }
     // Composure assessed (finale ran) for roughly half of runs.
     if (s % 2 === 0) {
@@ -229,6 +251,8 @@ test('headline adjective is not a structural constant across 1000+ varied seeded
       `seed ${s}: structurally-constant premiseTolerance leaked ACCOMMODATING into headline: "${label}"`);
     assert.ok(!label.includes('SATIATED'),
       `seed ${s}: structurally-constant semanticSatiation leaked SATIATED into headline: "${label}"`);
+    assert.ok(!label.includes('CONSISTENT'),
+      `seed ${s}: near-constant responseConsistency leaked CONSISTENT into headline: "${label}"`);
 
     const adjective = label.split(' ')[3];
     adjectiveCounts[adjective] = (adjectiveCounts[adjective] || 0) + 1;
@@ -238,7 +262,7 @@ test('headline adjective is not a structural constant across 1000+ varied seeded
   assert.ok(distinctAdjectives > 1,
     `headline adjective was constant across ${RUNS} runs: ${JSON.stringify(adjectiveCounts)}`);
   // Surfaced for the final-fix report; not a hard assertion on exact shape.
-  console.log(`Fix 1 adjective distribution over ${RUNS} runs:`, adjectiveCounts);
+  console.log(`Fix 1 (corrected) adjective distribution over ${RUNS} runs:`, adjectiveCounts);
 });
 
 // The `timedOut` flag must distinguish the two commit paths precisely: true
