@@ -23,6 +23,13 @@ export const DRIFT_STEP_MS = 16;
 
 export const FINALE_FREEZE_MS = 2200;
 
+// The beat between the cursor arriving in the corner and the clock being
+// dropped to zero. Without it the drift ending, the real cursor returning
+// and the timer collapsing all land in the same instant and read as one
+// glitch; with it they read as a sequence, which is what makes the last
+// step feel deliberate rather than broken.
+export const FINALE_EXPIRY_BEAT_MS = 600;
+
 export function accumulateDistance(points) {
   let total = 0;
   for (let i = 1; i < points.length; i++) {
@@ -194,13 +201,20 @@ export function runFinale({ cursor, timerDriver, onDistance }) {
     pending = setTimeout(() => { pending = null; resolveWait = null; resolve(); }, ms);
   });
 
-  const cleanup = () => {
+  // `expire` is passed ONLY by the natural completion path below. Every
+  // abort — Esc, any keydown, an external .cancel() — resumes instead, and
+  // must continue to: Esc is the accessibility escape hatch and the mercy
+  // (spec §5), and punishing someone for taking it would be indefensible.
+  // .cancel() fires when the taker got a click in and the question has
+  // already been decided by the outcome gate, where forcing an expiry would
+  // be trying to settle a settled question.
+  const cleanup = ({ expire = false } = {}) => {
     if (done) return;
     done = true;
     if (pending !== null) { clearTimeout(pending); pending = null; }
     if (resolveWait !== null) { const r = resolveWait; resolveWait = null; r(); }
     cursor.detach();
-    timerDriver.resume();
+    if (expire) timerDriver.expire(); else timerDriver.resume();
     window.removeEventListener('keydown', onKey);
   };
 
@@ -221,9 +235,26 @@ export function runFinale({ cursor, timerDriver, onDistance }) {
 
     onDistance(cursor.distanceTravelled());
     await cursor.drift();
-    cleanup();
+    if (done) return; // aborted mid-drift — the taker keeps their clock
+
+    // THE LAST ACTION. The cursor has reached the corner; the instrument now
+    // drops the clock to zero and takes the question. Expiry is the existing
+    // path, so this lands as SUBJECT DECLINED TO ANSWER and the review sheet
+    // brands the row REFUSED for good — the taker is recorded as having
+    // declined a question they were being physically prevented from
+    // answering. The mask slips and the instrument bills them for it.
+    //
+    // This REVERSES spec §5's "freezing the timer means the trick costs the
+    // taker nothing — which reads as haunted rather than unfair" (owner's
+    // call, 2026-08-13, amended in the spec). Costing them the question is
+    // the point now: unfair is the register the farce has already reached by
+    // Q23, and an accusation of refusal is a sharper close than a haunting
+    // that turns out to have been free.
+    await wait(FINALE_EXPIRY_BEAT_MS);
+    if (done) return; // aborted during the beat — same mercy applies
+    cleanup({ expire: true });
   })();
 
-  promise.cancel = cleanup;
+  promise.cancel = () => cleanup();
   return promise;
 }

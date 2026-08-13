@@ -1,7 +1,8 @@
 import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createSyntheticCursor, runFinale, FINALE_FREEZE_MS, DRIFT_STEPS, DRIFT_STEP_MS
+  createSyntheticCursor, runFinale, FINALE_FREEZE_MS, FINALE_EXPIRY_BEAT_MS,
+  DRIFT_STEPS, DRIFT_STEP_MS
 } from '../src/ui/cursor.js';
 
 // runFinale and createSyntheticCursor are exercised here against hand-rolled
@@ -46,9 +47,10 @@ function makeRootStub() {
 
 function makeTimerDriverStub() {
   return {
-    freezeCalls: 0, resumeCalls: 0,
+    freezeCalls: 0, resumeCalls: 0, expireCalls: 0,
     freeze() { this.freezeCalls++; },
-    resume() { this.resumeCalls++; }
+    resume() { this.resumeCalls++; },
+    expire() { this.expireCalls++; }
   };
 }
 
@@ -97,9 +99,21 @@ test('the finale completes end to end: freeze, drift to the corner, release',
     assert.equal(distance, 0, 'no real pointer samples were injected, so distance is 0 — the plumbing still ran');
 
     await advanceSteps(DRIFT_STEPS);
+
+    // The clock is still frozen at this point — the corner has been reached
+    // but the last action has not landed yet.
+    assert.equal(timerDriver.expireCalls, 0, 'nothing is taken until the beat elapses');
+
+    mock.timers.tick(FINALE_EXPIRY_BEAT_MS);
+    await flushMicrotasks();
     await finale;
 
-    assert.equal(timerDriver.resumeCalls, 1);
+    // THE LAST ACTION: the clock is dropped to zero and the question taken,
+    // through the instrument's ordinary expiry path. The taker is recorded
+    // as having declined a question they were being prevented from answering.
+    assert.equal(timerDriver.expireCalls, 1, 'the finale must take the question');
+    assert.equal(timerDriver.resumeCalls, 0,
+      'and must never hand the clock back — expire is one-way');
     assert.equal(root.appended[0]._removed, true, 'synthetic cursor detached at the end');
     assert.equal(document.body.classList.contains('cursor-hidden'), false);
 
@@ -179,10 +193,65 @@ test('calling .cancel() twice, or after natural completion, is a harmless no-op'
     mock.timers.tick(FINALE_FREEZE_MS);
     await flushMicrotasks();
     await advanceSteps(DRIFT_STEPS);
+    mock.timers.tick(FINALE_EXPIRY_BEAT_MS);
+    await flushMicrotasks();
     await finale;
 
+    assert.equal(timerDriver.expireCalls, 1);
+    finale.cancel();
+    finale.cancel();
+    assert.equal(timerDriver.expireCalls, 1, 'expire() must not fire again');
+    assert.equal(timerDriver.resumeCalls, 0, 'and a late cancel must not undo it');
+  }));
+
+
+// ── the last action ───────────────────────────────────────────────────────
+// The finale used to hand the clock back. It now drops it to zero and takes
+// the question, through the instrument's ordinary expiry path — so the row
+// lands as SUBJECT DECLINED TO ANSWER and is branded REFUSED for good. Every
+// ABORT path must still resume: Esc is the accessibility hatch and the mercy
+// (spec §5), and .cancel() fires when the taker already got a click in.
+
+test('Esc during the freeze resumes the clock and never takes the question',
+  withFinaleHarness(async ({ timerDriver }) => {
+    const finale = runFinale({ cursor: createSyntheticCursor(makeRootStub()), timerDriver, onDistance: () => {} });
+    mock.timers.tick(FINALE_FREEZE_MS / 4);
+    await flushMicrotasks();
+    window.dispatch('keydown', { key: 'Escape' });
+    await finale;
+    assert.equal(timerDriver.resumeCalls, 1, 'the taker keeps their remaining time');
+    assert.equal(timerDriver.expireCalls, 0, 'taking the question would punish the escape hatch');
+  }));
+
+test('Esc during the final beat still spares the taker',
+  withFinaleHarness(async ({ cursor, timerDriver }) => {
+    // The narrowest window in the sequence: the corner has been reached and
+    // the clock is about to be taken. Esc must still win.
+    const finale = runFinale({ cursor, timerDriver, onDistance: () => {} });
+    mock.timers.tick(FINALE_FREEZE_MS);
+    await flushMicrotasks();
+    await advanceSteps(DRIFT_STEPS);
+    mock.timers.tick(FINALE_EXPIRY_BEAT_MS / 3);
+    await flushMicrotasks();
+
+    window.dispatch('keydown', { key: 'Escape' });
+    await finale;
+
+    assert.equal(timerDriver.expireCalls, 0, 'Esc during the beat must abort the last action');
     assert.equal(timerDriver.resumeCalls, 1);
+  }));
+
+test('an external .cancel() mid-drift never takes the question',
+  withFinaleHarness(async ({ cursor, timerDriver }) => {
+    // main.js calls this via teardownTrick when the taker lands a blind
+    // click, i.e. when the outcome gate has already settled the question.
+    // Forcing an expiry there would be trying to decide a decided question.
+    const finale = runFinale({ cursor, timerDriver, onDistance: () => {} });
+    mock.timers.tick(FINALE_FREEZE_MS);
+    await flushMicrotasks();
+    await advanceSteps(10);
     finale.cancel();
-    finale.cancel();
-    assert.equal(timerDriver.resumeCalls, 1, 'resume() must not fire again');
+    await finale;
+    assert.equal(timerDriver.expireCalls, 0);
+    assert.equal(timerDriver.resumeCalls, 1);
   }));

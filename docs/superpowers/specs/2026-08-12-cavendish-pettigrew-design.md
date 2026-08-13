@@ -237,6 +237,26 @@ is the wrongness the finale is supposed to leave behind.
 Freezing the timer during the finale means the trick costs the taker nothing —
 which reads as haunted rather than unfair.
 
+> **AMENDED 2026-08-13 (owner's call) — the finale now takes the question.**
+> The clock stays frozen for the freeze and the drift, exactly as above, so
+> none of that time counts. But as its **last action**, once the cursor
+> reaches the corner, the finale drops the timer to zero and lets the
+> question expire through the ordinary path — so Q23 lands as
+> `SUBJECT DECLINED TO ANSWER`, and the review sheet brands the row REFUSED
+> for good. The taker is recorded as having declined a question they were
+> being physically prevented from answering.
+>
+> "Costs the taker nothing" no longer applies, deliberately. Unfair is the
+> register the farce has reached by Q23, and an accusation of refusal is a
+> sharper close than a haunting that turns out to have been free.
+>
+> **Every abort path still resumes the clock and never takes the question.**
+> Esc and any keydown are the accessibility escape hatch and the mercy, and
+> punishing someone for taking one would be indefensible; an external
+> `.cancel()` fires when the taker landed a blind click, where the outcome
+> gate has already settled the question. Both are pinned by tests, including
+> Esc landing inside the final beat.
+
 **Implementation.** A page cannot move the OS cursor. Pointer Lock API is
 unsuitable: browsers overlay a "Press Esc to exit" notification that would
 puncture the effect. Instead: `cursor: none` across the test surface plus a

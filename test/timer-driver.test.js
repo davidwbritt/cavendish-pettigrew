@@ -52,3 +52,32 @@ test('a driver resumed mid-flight (finale cancelled) continues normally and stil
   now = 500000 + 5000;                        // 5s + 5s = 10.000s of real elapsed time — due
   assert.equal(d.expired(), true, 'and must still expire normally once genuinely due after resuming');
 });
+
+test('expire() drops the clock to zero even while frozen, and is one-way', () => {
+  // The Q23 finale calls this with the clock still frozen (src/ui/cursor.js),
+  // so it has to short-circuit the frozen/running distinction entirely.
+  let now = 0;
+  const d = createTimerDriver(1, () => now);
+  now = 5000; d.freeze();
+  now = 90000;
+  assert.equal(d.expired(), false, 'frozen, so not yet expired');
+
+  d.expire();
+  assert.equal(d.expired(), true, 'expired on the spot, despite being frozen');
+  assert.equal(d.displayedRemainingMs(), 0, 'and the face reads zero');
+
+  // Nothing hands a forced clock back. resume() exists for the abort paths,
+  // which must leave the taker's remaining time exactly as they found it.
+  d.resume();
+  assert.equal(d.expired(), true, 'resume() must not revive a forced clock');
+  assert.equal(d.displayedRemainingMs(), 0);
+});
+
+test('expire() reports zero for every question, whatever its real duration', () => {
+  for (let n = 1; n <= 24; n++) {
+    const d = createTimerDriver(n, () => 0);
+    d.expire();
+    assert.equal(d.displayedRemainingMs(), 0, `Q${n} face did not reach zero`);
+    assert.equal(d.expired(), true, `Q${n} did not report expired`);
+  }
+});
