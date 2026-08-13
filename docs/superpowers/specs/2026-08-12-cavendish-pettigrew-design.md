@@ -492,10 +492,9 @@ Node tests in the Spinelli mould — most of this is invariants rather than feel
 ## 12. Shipping
 
 - Single HTML file, no dependencies, no network, no build step
-- Project directory `/home/dave/Projects/aptitude/`. GitHub Pages
-  (`davidwbritt/aptitude`) plus itch.io under `clevermonkey`, alongside Bumper
-  Crop and Spinelli. The share URL `davidwbritt.github.io/aptitude/` gives
-  nothing away — deliberately chosen over the instrument's own name
+- Local project directory `/home/dave/Projects/aptitude/`; GitHub repo
+  `davidwbritt/cavendish-pettigrew`, canonical branch `develop`. Pages plus
+  itch.io under `clevermonkey`, alongside Bumper Crop and Spinelli
 - Portrait, with the itch orientation dropdown set explicitly — itch derives
   mobile orientation from embed aspect ratio plus that dropdown (lesson from
   Bumper Crop's forced-landscape embed)
