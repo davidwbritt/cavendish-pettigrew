@@ -5,6 +5,7 @@ import { createTranscript, recordAnswer, recordAmendment, amendmentCount } from 
 import { chooseFalsifications } from '../src/falsify.js';
 import { preliminaryScore, AMENDMENT_PENALTY } from '../src/scoring.js';
 import { reviewRows, applyAmendment } from '../src/ui/screens.js';
+import { questionByNumber } from '../src/questions.js';
 
 function transcript() {
   const t = createTranscript();
@@ -50,4 +51,32 @@ test('a row starts unamended and applyAmendment marks it amended', () => {
   assert.equal(row.amended, false);
   applyAmendment(t, row);
   assert.equal(row.amended, true);
+});
+
+test('each row carries the actual answer TEXT, not just the letter index', () => {
+  const t = transcript();
+  const rows = reviewRows(t, chooseFalsifications(t, mulberry32(1)));
+  for (const row of rows) {
+    assert.equal(row.answerText, questionByNumber(row.n).options[row.shown]);
+  }
+});
+
+test('applyAmendment updates the answer text along with the letter, and they never disagree', () => {
+  const t = transcript();
+  const rows = reviewRows(t, chooseFalsifications(t, mulberry32(1)));
+  const row = rows[1];
+  const before = row.answerText;
+  applyAmendment(t, row);
+  assert.equal(row.answerText, questionByNumber(row.n).options[row.shown]);
+  assert.notEqual(row.answerText, before);
+});
+
+test('an unanswered question renders a defined fallback value, never undefined', () => {
+  const t = createTranscript();
+  recordAnswer(t, {
+    n: 1, choice: null, realElapsedMs: 5000, displayedElapsedMs: 9000, changes: 0, trick: null
+  });
+  const rows = reviewRows(t, []); // no falsifications in play
+  assert.equal(rows[0].shown, null);
+  assert.equal(rows[0].answerText, null); // never undefined — renderer's `?? fallback` needs a defined null
 });

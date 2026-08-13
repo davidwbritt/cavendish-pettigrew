@@ -113,15 +113,31 @@ export function renderQuestion(root, { question, displayName, onChoose, onExpire
   return { driver, stop, optionElements: options, setInterceptor };
 }
 
-// Pure and DOM-free so the "does an edit actually mark the row amended"
-// behaviour can be unit-tested directly, not just inspected in the onclick
-// closure below (which reviewRows/renderReview's own DOM-free contract can't
-// reach). renderReview's EDIT handler calls this for its state change, then
-// layers the DOM/animation updates on top.
+// The letter alone means nothing to a taker who never memorised which
+// letter they picked — the falsification only lands if the actual answer
+// TEXT is shown. Returns null (never undefined) for "no valid choice to
+// show", so callers get a value they can safely `?? fallback` against —
+// covers both an untouched timeout (shown is null) and, defensively, any
+// out-of-range index.
+function answerTextFor(n, shown) {
+  if (!Number.isInteger(shown) || shown < 0 || shown > 3) return null;
+  return questionByNumber(n).options[shown];
+}
+
+// Pure and DOM-free so the "does an edit actually mark the row amended, and
+// does the answer text change with it" behaviour can be unit-tested
+// directly, not just inspected in the onclick closure below (which
+// reviewRows/renderReview's own DOM-free contract can't reach). renderReview's
+// EDIT handler calls this for its state change, then layers the
+// DOM/animation updates on top. An unanswered row's `shown` starts null;
+// treated as -1 here so the first edit lands on option A (index 0) rather
+// than producing NaN.
 export function applyAmendment(transcript, row) {
-  const next = (row.shown + 1) % 4;
+  const current = Number.isInteger(row.shown) ? row.shown : -1;
+  const next = (current + 1) % 4;
   row.shown = next;
   row.amended = true;
+  row.answerText = answerTextFor(row.n, next);
   recordAmendment(transcript, row.n, next);
   return next;
 }
@@ -130,12 +146,16 @@ export function reviewRows(transcript, falsifications) {
   return transcript.entries
     .slice()
     .sort((a, b) => a.n - b.n)
-    .map(e => ({
-      n: e.n,
-      shown: shownChoiceFor(e.n, e.choice, falsifications),
-      displayedElapsedMs: e.displayedElapsedMs,
-      amended: false
-    }));
+    .map(e => {
+      const shown = shownChoiceFor(e.n, e.choice, falsifications);
+      return {
+        n: e.n,
+        shown,
+        answerText: answerTextFor(e.n, shown),
+        displayedElapsedMs: e.displayedElapsedMs,
+        amended: false
+      };
+    });
 }
 
 export function renderReview(root, { transcript, falsifications, displayName, baseScore, onContinue }) {
@@ -154,16 +174,24 @@ export function renderReview(root, { transcript, falsifications, displayName, ba
     scoreValue.textContent = String(preliminaryScore(baseScore, amendmentCount(transcript)));
   };
 
+  // Letter alone is unrecognisable to the taker; the sentence is what does
+  // the work. `—` (no period) marks "nothing was recorded" distinctly from
+  // an actual lettered choice.
+  const letterPrefix = shown => Number.isInteger(shown) ? `${'ABCD'[shown]}.` : '—';
+  const answerBody = row => row.answerText ?? '(no response recorded)';
+
   const rowNodes = rows.map(row => {
     const q = questionByNumber(row.n);
-    const answerCell = el('span', { class: 'answer', text: 'ABCD'[row.shown] ?? '—' });
+    const answerLetter = el('span', { class: 'answer-letter', text: letterPrefix(row.shown) });
+    const answerText = el('span', { class: 'answer-text', text: answerBody(row) });
     const stamp = el('span', { class: 'correction' });
 
     const edit = el('button', {
       class: 'edit', text: 'EDIT',
       onclick: () => {
-        const next = applyAmendment(transcript, row);
-        answerCell.textContent = 'ABCD'[next];
+        applyAmendment(transcript, row);
+        answerLetter.textContent = letterPrefix(row.shown);
+        answerText.textContent = answerBody(row);
         stamp.textContent = `−${AMENDMENT_PENALTY}`;
         stamp.classList.remove('punch');
         void stamp.offsetWidth;          // restart the animation
@@ -173,12 +201,14 @@ export function renderReview(root, { transcript, falsifications, displayName, ba
     });
 
     return el('div', { class: 'review-row' }, [
-      el('span', { class: 'review-n', text: `Q${row.n}` }),
-      el('span', { class: 'review-prompt', text: q.prompt }),
-      answerCell,
-      el('span', { class: 'review-time', text: `0:${String(Math.round(row.displayedElapsedMs / 1000)).padStart(2, '0')}` }),
-      edit,
-      stamp
+      el('div', { class: 'review-row-head' }, [
+        el('span', { class: 'review-n', text: `Q${row.n}` }),
+        el('span', { class: 'review-time', text: `0:${String(Math.round(row.displayedElapsedMs / 1000)).padStart(2, '0')}` }),
+        edit,
+        stamp
+      ]),
+      el('p', { class: 'review-prompt', text: q.prompt }),
+      el('p', { class: 'review-answer' }, [answerLetter, answerText])
     ]);
   });
 

@@ -75,12 +75,22 @@ body.cursor-hidden, body.cursor-hidden * { cursor: none !important; }
   border-bottom: 6px solid transparent;
 }
 .review-row {
-  display: grid; grid-template-columns: 3rem 1fr 1.5rem 3rem 3.5rem 3rem;
-  gap: .6rem; align-items: baseline; padding: .35rem 0;
-  border-bottom: 1px solid var(--rule); font-size: .86rem;
+  padding: .9rem 0; border-bottom: 1px solid var(--rule); font-size: .86rem;
 }
-.review-n, .review-time, .answer { font-family: var(--mono); font-size: .78rem; }
-.review-prompt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-row-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem .8rem;
+}
+.review-n, .review-time { font-family: var(--mono); font-size: .78rem; }
+.review-row-head .edit { margin-left: auto; }
+.review-prompt { margin: .5rem 0 .4rem; overflow-wrap: break-word; }
+.review-answer {
+  display: flex; gap: .5rem; align-items: baseline; margin: 0;
+  padding-left: .9rem; border-left: 2px solid var(--rule);
+}
+.answer-letter {
+  font-family: var(--mono); font-weight: 700; font-size: .82rem; flex: 0 0 auto;
+}
+.answer-text { min-width: 0; overflow-wrap: break-word; }
 .edit {
   font-family: var(--mono); font-size: .64rem; letter-spacing: .1em;
   background: transparent; border: 1px solid var(--blue); color: var(--blue);
