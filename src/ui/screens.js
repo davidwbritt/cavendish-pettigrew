@@ -192,3 +192,88 @@ export function renderReview(root, { transcript, falsifications, displayName, ba
     el('button', { class: 'begin', text: 'COMPILE RESULTS', onclick: onContinue })
   );
 }
+
+export const CERTIFICATE_MAX_WIDTH_PX = 400;
+
+function scoreBar(value) {
+  const filled = Math.round(value / 10);
+  return '█'.repeat(filled) + '░'.repeat(10 - filled);
+}
+
+// Pure and DOM-free so the "a suppressed faculty never emits a numeric bar"
+// guarantee can be unit-tested directly (test/report.test.js), not just
+// inspected in renderCertificate's DOM-building closure below — this module
+// has no DOM available in the test environment (see reviewRows/applyAmendment
+// above for the same pattern).
+//
+// Built from `report.interpretation`, NEVER from a raw `faculties` object.
+// faculties.composure still holds a real (fake-perfect-100) number even when
+// the Q23 finale never ran for this taker — only report.interpretation
+// carries the score:null + clinical-note suppression that keeps that number
+// off the certificate (see composureAssessed() in src/scoring.js and
+// buildReport() in src/report.js). Drawing bars from `faculties` here would
+// reopen that leak from a third angle.
+export function certificateIndexRows(interpretation) {
+  return interpretation.map(p =>
+    p.score === null
+      ? { facultyKey: p.facultyKey, label: p.label, note: 'NOT ASSESSED' }
+      : {
+          facultyKey: p.facultyKey,
+          label: p.label,
+          bar: scoreBar(p.score),
+          score: String(p.score).padStart(3, ' ')
+        }
+  );
+}
+
+// `faculties` is accepted (not just `report`) to match this screen's call
+// site in main.js/Task 15, but is deliberately UNUSED for the index table —
+// see certificateIndexRows above for why.
+export function renderCertificate(root, { report, faculties, centile, onDebrief }) {
+  // Same leaked-rAF-loop guard every other screen opens with (see the
+  // module-level activeStop comment above). The certificate starts no timer
+  // of its own, but must still kill a still-running question-screen loop if
+  // this screen is ever reached without a prior stop().
+  if (activeStop) activeStop();
+
+  clear(root);
+
+  const indexRows = certificateIndexRows(report.interpretation).map(row =>
+    row.note
+      ? el('div', { class: 'index-row suppressed' }, [
+          el('span', { class: 'index-label', text: row.label }),
+          el('span', { class: 'index-note', text: row.note })
+        ])
+      : el('div', { class: 'index-row' }, [
+          el('span', { class: 'index-label', text: row.label }),
+          el('span', { class: 'index-bar', text: row.bar }),
+          el('span', { class: 'index-score', text: row.score })
+        ])
+  );
+
+  const paragraphs = report.interpretation.map(p =>
+    el('p', { class: 'interpretation', text: p.paragraph })
+  );
+
+  root.append(
+    el('div', { class: 'certificate' }, [
+      el('div', { class: 'cert-head' }, [
+        el('div', { class: 'label', text: report.header.instrument }),
+        el('div', { class: 'label', text: `SUBJECT: ${report.header.subject}` }),
+        el('div', { class: 'label', text: report.header.administration })
+      ]),
+      el('h2', { class: 'section-title', text: 'SUMMARY OF FINDINGS' }),
+      ...report.summary.map(s => el('p', { text: s })),
+      el('div', { class: 'index-table' }, indexRows),
+      el('h2', { class: 'section-title', text: 'INTERPRETATION' }),
+      ...paragraphs,
+      el('h2', { class: 'section-title', text: 'BEHAVIOURAL OBSERVATIONS' }),
+      ...report.observations.map(o => el('p', { text: o })),
+      el('h2', { class: 'section-title', text: 'RECOMMENDATIONS AND LIMITATIONS' }),
+      ...report.recommendations.map(r => el('p', { text: r })),
+      el('p', { class: 'closer', text: report.closer }),
+      el('div', { class: 'cert-foot', text: `σ = 0.03 · n = 1 · p < .0001 · ${centile}th centile` })
+    ]),
+    el('a', { class: 'debrief-link', href: '#debrief', text: 'About this instrument', onclick: onDebrief })
+  );
+}

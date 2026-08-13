@@ -4,6 +4,7 @@ import { mulberry32 } from '../src/rng.js';
 import { BARNUM, INSINUATION_TIERS } from '../src/statements.js';
 import { drawStatements, buildReport } from '../src/report.js';
 import { FACULTIES } from '../src/scoring.js';
+import { CERTIFICATE_MAX_WIDTH_PX, certificateIndexRows } from '../src/ui/screens.js';
 
 const faculties = Object.fromEntries(FACULTIES.map((f, i) => [f.key, 40 + i * 8]));
 const build = seed => buildReport({
@@ -142,5 +143,38 @@ test('suppressed composure still yields exactly one interpretation paragraph per
     });
     assert.equal(r.interpretation.length, FACULTIES.length);
     for (const p of r.interpretation) assert.ok(!p.paragraph.includes('undefined'));
+  }
+});
+
+test('the certificate is composed for a portrait phone screenshot', () => {
+  assert.ok(CERTIFICATE_MAX_WIDTH_PX <= 420,
+    'certificate must fit a portrait phone without horizontal cropping');
+});
+
+test('a suppressed composure produces no numeric bar or score in the index table', () => {
+  for (let s = 0; s < 20; s++) {
+    const suppressed = buildReport({
+      faculties, centile: 94, classification: 'PROFILE 4-B — DEFERRED ANALYTIC',
+      displayName: 'DAVDI', amendmentCount: 0, rng: mulberry32(s),
+      composureAssessed: false
+    });
+    const rows = certificateIndexRows(suppressed.interpretation);
+    assert.equal(rows.length, FACULTIES.length);
+
+    const composureRow = rows.find(r => r.facultyKey === 'composure');
+    assert.equal(composureRow.bar, undefined, 'suppressed composure must not render a bar');
+    assert.equal(composureRow.score, undefined, 'suppressed composure must not render a score');
+    assert.ok(composureRow.note, 'suppressed composure must render a note in place of the bar/score');
+    assert.ok(!/[█░]/.test(JSON.stringify(composureRow)), 'no bar glyph leaked into the suppressed row');
+    assert.ok(!JSON.stringify(composureRow).includes(String(faculties.composure)),
+      'the unmeasured composure number must not leak into the row at all');
+
+    // Every other faculty is unaffected — still a real bar and score.
+    for (const row of rows) {
+      if (row.facultyKey === 'composure') continue;
+      assert.ok(row.bar, `${row.facultyKey} row is missing its bar`);
+      assert.ok(row.score, `${row.facultyKey} row is missing its score`);
+      assert.equal(row.note, undefined, `${row.facultyKey} row should not carry a suppression note`);
+    }
   }
 });
