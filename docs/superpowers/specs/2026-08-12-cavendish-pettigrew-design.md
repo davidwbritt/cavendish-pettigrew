@@ -453,9 +453,19 @@ to misbehave with.
 ### The timer must be understated
 
 Hairline depletion rule plus small monospace digits in the form grid, top right.
-No large countdown, no colour change, no urgency styling. A dramatic timer is a
-*game* timer, and a game timer invites scrutiny. This one should be boring enough
-that nobody thinks to check it against a watch.
+No large countdown, no urgency styling, no motion. A dramatic timer is a *game*
+timer, and a game timer invites scrutiny. This one should be boring enough that
+nobody thinks to check it against a watch.
+
+**One deliberate exception** (added 2026-08-13): the digits turn `--red` below
+`RED_THRESHOLD_MS`. This is a knowing trade against the paragraph above — it
+points at the one component that is lying. It is judged worth it because the
+face always drains 30 → 0 linearly, so looking harder reveals nothing; only
+timing it against a real clock would. Nothing else about the timer changes: no
+size change, no motion, no colour on the depletion rule.
+
+**If a playtester ever reports that the clock "felt fast", revert this first.**
+It is the single change most likely to have invited that scrutiny.
 
 ### Motion — essentially none
 
