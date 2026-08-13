@@ -2758,6 +2758,10 @@ function nextQuestion() {
   if (trick) {
     detach = applyTrick(trick, {
       optionElements: screen.optionElements,
+      // Tricks that alter or swallow a click MUST go through setInterceptor —
+      // screens.js registers the real onclick first, so a later-attached
+      // listener can never pre-empt it. See Task 11 findings.
+      setInterceptor: screen.setInterceptor,
       onChoose: choice => { commit(choice, screen.driver.elapsedMs(), screen.driver); advance(screen, detach); },
       rng,
       isTouch
