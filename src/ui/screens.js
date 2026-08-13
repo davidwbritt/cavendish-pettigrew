@@ -76,11 +76,25 @@ export function renderLanding(root, onStart) {
 export const SELECTION_PAUSE_MS = 500;
 
 // How long the forced-answer notice is held on screen after a timeout —
-// long enough to read one clinical sentence.
-export const FORCED_ANSWER_PAUSE_MS = 3000;
+// long enough to read three short clinical clauses without hurrying.
+export const FORCED_ANSWER_PAUSE_MS = 3500;
 
+// The instrument does not report that time ran out. It reports that the
+// SUBJECT DECLINED — an accusation, filed flatly, about something the taker
+// did not do, on a clock that was not giving them the thirty seconds it
+// showed (src/clock.js). There is nothing on screen to argue with and no
+// control to contest it, which is the entire point: it converts the
+// instrument's own cheating into a fact about the taker's character, three
+// or four questions before the review sheet brands the same row REFUSED and
+// makes the accusation permanent.
+//
+// Third person on purpose. "ON YOUR BEHALF" was a service being performed
+// for the taker; "THE SUBJECT DECLINED" is a note being taken about them,
+// and matches the certificate's register — the taker has stopped being
+// addressed and started being recorded. The closing clause is the sting:
+// it implies a consequence and names none.
 export const FORCED_ANSWER_TEXT =
-  'NO RESPONSE RECORDED. A RESPONSE HAS BEEN SELECTED ON YOUR BEHALF.';
+  'SUBJECT DECLINED TO ANSWER. A RESPONSE HAS BEEN RECORDED ON THE SUBJECT\'S BEHALF. REFUSALS ARE NOTED.';
 
 // Renders a remaining-ms value as the `0:SS` face text — the single source
 // both the initial digits (before the first tick) and every subsequent tick

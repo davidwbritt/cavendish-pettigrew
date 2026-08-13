@@ -81,7 +81,7 @@
         let waited = 0, sawNotice = false;
         while (questionNumber() === n && waited < 70000) {
           await sleep(250); waited += 250;
-          if (!sawNotice && (document.body.innerText || '').includes('NO RESPONSE RECORDED')) {
+          if (!sawNotice && (document.body.innerText || '').includes('DECLINED TO ANSWER')) {
             sawNotice = true;
             log(`Q${n}: TIMEOUT notice shown after ~${waited}ms; face=${timerFace()}`);
             const marked = $$('.option[aria-pressed="true"]').length;
@@ -119,7 +119,7 @@
         let waited = 0, notice = false;
         while (questionNumber() === n && waited < 70000) {
           await sleep(250); waited += 250;
-          if (!notice && (document.body.innerText || '').includes('NO RESPONSE RECORDED')) {
+          if (!notice && (document.body.innerText || '').includes('DECLINED TO ANSWER')) {
             notice = true;
             log(`Q${n}: LOCKOUT — ${clicksPerQuestion[n]} clicks refused, timer rescued it after ~${waited}ms`);
           }

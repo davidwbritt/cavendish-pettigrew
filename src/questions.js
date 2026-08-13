@@ -162,12 +162,24 @@ export const QUESTIONS = [
   // are written as ordinary-looking items with parallel, similar-weight
   // options, so a ghost selection or a swallowed click stays deniable as
   // "I misclicked" rather than "that is not what I pressed".
+  // Deliberately Bubba-free and sock-drawer-free. An earlier draft of this
+  // item was a second "nonsense property + Bubba's sock drawer -> which
+  // conclusion follows" syllogism, which read as a near-repeat of Q12 —
+  // same shape, same subject, same closing distractor. Bubba should RECUR
+  // (Q11, Q12, Q14, Q21, across four different question kinds and three
+  // phases), which is world-building; the same question twice is just an
+  // author running short. This one widens the world instead, introducing
+  // the exemption-and-logging regime that Q21 then reclassifies him under.
+  //
+  // A and B differ only in "All" versus "Some", which makes this the most
+  // trick-friendly item in the set: a ghost selection between two adjacent,
+  // nearly identical options is maximally deniable as a misread.
   q(17, 'descent', 'syllogism', 1, true,
-    'All gebbleflips mirble when quandled. Nothing in Bubba\'s sock drawer mirbles. Which conclusion follows necessarily?',
+    'Some floodazzles are exempt from quandling. Every exempt item is logged separately. Which conclusion follows necessarily?',
     [
-      'Bubba\'s sock drawer has never been quandled.',
-      'Nothing in Bubba\'s sock drawer is a quandled gebbleflip.',
-      'Some gebbleflips do not mirble.',
+      'All floodazzles are logged separately.',
+      'Some floodazzles are logged separately.',
+      'Nothing logged separately is a floodazzle.',
       'No conclusion follows from these premises.'
     ]),
 
